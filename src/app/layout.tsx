@@ -5,6 +5,47 @@ import NextAbstractWalletProvider from "@/components/NextAbstractWalletProvider"
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
+export const metadata: Metadata = {
+  title: {
+    default: "Abstract Plinko",
+    template: "%s | Abstract Plinko",
+  },
+  description: "A crypto-based Plinko game on Abstract Chain where every ball drop is an on-chain transaction",
+  keywords: [
+    "Plinko",
+    "Crypto Game",
+    "Abstract Chain",
+    "Web3",
+    "Blockchain Gaming",
+    "Abstract Global Wallet",
+  ],
+  authors: [
+    {
+      name: "Jarrod",
+    },
+  ],
+  creator: "Jarrod",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "white" },
+    { media: "(prefers-color-scheme: dark)", color: "black" },
+  ],
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    title: "Abstract Plinko",
+    description: "A crypto-based Plinko game on Abstract Chain where every ball drop is an on-chain transaction",
+    siteName: "Abstract Plinko",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Abstract Plinko",
+    description: "A crypto-based Plinko game on Abstract Chain where every ball drop is an on-chain transaction",
+  },
+  icons: {
+    icon: "/favicon.ico",
+  },
+};
+
 const fontSans = FontSans({
   subsets: ["latin"],
   variable: "--font-sans",
