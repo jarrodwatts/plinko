@@ -9,15 +9,19 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@abstract-foundation/agw-client": "^1.8.1",
-    "@abstract-foundation/agw-react": "^1.8.1",
-    "@privy-io/cross-app-connect": "^0.2.1",
-    "@tanstack/react-query": "^5.71.5",
+    "@abstract-foundation/agw-client": "latest",
+    "@abstract-foundation/agw-react": "latest",
+    "@privy-io/cross-app-connect": "latest",
+    "@tanstack/react-query": "latest",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.525.0",
     "next": "15.2.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "viem": "^2.25.0",
-    "wagmi": "^2.14.16"
+    "tailwind-merge": "^3.3.1",
+    "viem": "latest",
+    "wagmi": "latest"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -28,6 +32,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
     "tailwindcss": "^4",
+    "tw-animate-css": "^1.3.5",
     "typescript": "^5"
   },
   "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
