@@ -1,9 +1,9 @@
 "use client";
 
+import PlinkoGame from '@/components/PlinkoGame';
+
 export default function Home() {
   return (
-    <div>
-      <h1>Hello World</h1>
-    </div>
+    <PlinkoGame />
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 
+import { chain } from "@/config/chain";
 import { AbstractWalletProvider } from "@abstract-foundation/agw-react";
 import { QueryClient } from "@tanstack/react-query";
-import { abstractTestnet } from "viem/chains";
 
 export const queryClient = new QueryClient();
 
@@ -12,7 +12,7 @@ export default function AbstractWalletWrapper({
   children: React.ReactNode;
 }) {
   return (
-    <AbstractWalletProvider chain={abstractTestnet} queryClient={queryClient}>
+    <AbstractWalletProvider chain={chain} queryClient={queryClient}>
       {children}
     </AbstractWalletProvider>
   );

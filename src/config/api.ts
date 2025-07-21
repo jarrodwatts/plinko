@@ -1,0 +1,1 @@
+export const ABSTRACT_PORTAL_API_URL = "https://backend.portal.abs.xyz/api";
