@@ -93,6 +93,8 @@ export async function POST(request: NextRequest) {
 
     console.log('Plinko round transaction submitted:', hash);
 
+    console.log('Should land in multiplier', multiplier / 100, 'x');
+
     return NextResponse.json({
       hash,
       randomSeed,
