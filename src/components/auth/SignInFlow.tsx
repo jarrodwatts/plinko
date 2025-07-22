@@ -7,6 +7,7 @@ import { useAbstractSession } from "@/hooks/use-abstract-session";
 import { useAbstractProfile } from "@/hooks/use-abstract-profile";
 import { PlayerAvatar } from "@/components/ui/PlayerAvatar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PRIMARY_COLOR } from "@/lib/colors";
 import { WalletConnectionStep } from "./steps/WalletConnectionStep";
 import { SiweAuthStep } from "./steps/SiweAuthStep";
 import { SessionKeyStep } from "./steps/SessionKeyStep";
@@ -86,16 +87,21 @@ export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
           <div key={step.key} className="flex items-center">
             <div
               className={`w-2 h-2 rounded-full transition-all duration-300 ${index <= currentStepIndex
-                ? 'bg-[#00ca51] shadow-sm shadow-[#00ca51]/50'
+                ? 'shadow-sm'
                 : 'bg-neutral-600'
                 }`}
+              style={index <= currentStepIndex ? {
+                backgroundColor: PRIMARY_COLOR,
+                boxShadow: `0 1px 2px 0 ${PRIMARY_COLOR}80`
+              } : {}}
             />
             {index < steps.length - 1 && (
               <div
                 className={`w-6 h-px mx-1.5 transition-all duration-300 opacity-40 ${index < currentStepIndex
-                  ? 'bg-[#00ca51]'
+                  ? ''
                   : 'bg-neutral-600'
                   }`}
+                style={index < currentStepIndex ? { backgroundColor: PRIMARY_COLOR } : {}}
               />
             )}
           </div>
@@ -142,7 +148,7 @@ export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
       case SignInStep.COMPLETED:
         return (
           <div className="text-center space-y-4">
-            <h3 className="text-xl font-semibold text-[#00ca51]">
+            <h3 className="text-xl font-semibold" style={{ color: PRIMARY_COLOR }}>
               You&rsquo;re all set!
             </h3>
             <p className="text-neutral-400 text-sm">

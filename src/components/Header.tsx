@@ -7,6 +7,7 @@ import SignInModal from "./auth/SignInModal";
 import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { WalletDisplay } from "./WalletDisplay";
+import { PRIMARY_COLOR, PRIMARY_HOVER } from "@/lib/colors";
 
 const Header = () => {
   const { address } = useAccount();
@@ -23,13 +24,13 @@ const Header = () => {
         <div className="flex items-center gap-6">
           <Link href="/">
             <Image
-              src="/green-ball.png"
-              alt="Plinko"
-              width={40}
+              src="/blue-balls-text-logo.png"
+              alt="Blue Balls"
+              width={140}
               height={40}
               className="transition-transform duration-300 hover:scale-110"
               style={{
-                filter: "drop-shadow(0 0 8px rgba(0, 202, 81, 0.4))"
+                filter: `drop-shadow(0 0 8px ${PRIMARY_COLOR}66)`
               }}
             />
           </Link>
@@ -41,7 +42,10 @@ const Header = () => {
             <SignInModal>
               <Button
                 variant="default"
-                className="bg-[#00ca51] hover:bg-[#00b048] text-white font-bold px-6 rounded-md shadow-xl hover:shadow-2xl transition-all duration-200 border-0 text-sm group cursor-pointer hover:cursor-pointer h-[36px]"
+                style={{ backgroundColor: PRIMARY_COLOR }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = PRIMARY_HOVER}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = PRIMARY_COLOR}
+                className="text-white font-bold px-6 rounded-md shadow-xl hover:shadow-2xl transition-all duration-200 border-0 text-sm group cursor-pointer hover:cursor-pointer h-[36px]"
               >
                 Connect Wallet
                 <Image

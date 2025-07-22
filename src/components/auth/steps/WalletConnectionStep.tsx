@@ -3,6 +3,7 @@
 import React from "react";
 import { useAccount } from "wagmi";
 import { useAbstractLogin } from "@/hooks/use-abstract-login";
+import { PRIMARY_COLOR, PRIMARY_HOVER } from "@/lib/colors";
 import LoadingStep from "../LoadingStep";
 
 interface WalletConnectionStepProps {
@@ -45,9 +46,9 @@ export const WalletConnectionStep: React.FC<WalletConnectionStepProps> = ({
         <button
           onClick={() => login()}
           className="w-full text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
-          style={{ backgroundColor: '#00ca51', borderColor: '#00ca51', cursor: 'pointer' }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00b847'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#00ca51'}
+          style={{ backgroundColor: PRIMARY_COLOR, borderColor: PRIMARY_COLOR, cursor: 'pointer' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = PRIMARY_HOVER}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = PRIMARY_COLOR}
         >
           Try Again
         </button>
@@ -56,7 +57,7 @@ export const WalletConnectionStep: React.FC<WalletConnectionStepProps> = ({
           target="_blank"
           rel="noopener noreferrer"
           className="text-xs hover:underline block"
-          style={{ color: '#00ca51' }}
+          style={{ color: PRIMARY_COLOR }}
         >
           Having trouble? Check if pop-ups are blocked
         </a>
@@ -75,9 +76,9 @@ export const WalletConnectionStep: React.FC<WalletConnectionStepProps> = ({
       <button
         onClick={() => login()}
         className="w-full text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
-        style={{ backgroundColor: '#00ca51', borderColor: '#00ca51', cursor: 'pointer' }}
-        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00b847'}
-        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#00ca51'}
+        style={{ backgroundColor: PRIMARY_COLOR, borderColor: PRIMARY_COLOR, cursor: 'pointer' }}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = PRIMARY_HOVER}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = PRIMARY_COLOR}
       >
         Connect Abstract Global Wallet
       </button>

@@ -28,8 +28,8 @@ const LoadingStep: React.FC<LoadingStepProps> = ({ loadingText }) => {
       <div className="flex flex-col items-center justify-center text-center py-2">
         <div className="animate-pulse-glow">
           <Image
-            src="/green-ball.png"
-            alt="Plinko Ball"
+            src="/blue-ball.png"
+            alt="Blue Ball"
             width={80}
             height={80}
             className="rounded-full"
