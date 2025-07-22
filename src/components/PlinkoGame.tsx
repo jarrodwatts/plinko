@@ -435,39 +435,6 @@ const PlinkoGame = () => {
             </div>
           </div>
         </div>
-
-        {/* Game Controls */}
-        <div className="flex flex-col items-center space-y-4">
-          {isFullyAuthenticated ? (
-            <button
-              onClick={dropBall}
-              disabled={isDropping}
-              className="group relative px-8 py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 disabled:from-slate-500 disabled:to-slate-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl disabled:shadow-none transition-all duration-200 transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed min-w-[160px]"
-            >
-              <span className="relative z-10">
-                {isDropping ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>DROPPING...</span>
-                  </div>
-                ) : (
-                  'DROP BALL'
-                )}
-              </span>
-              {!isDropping && (
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
-              )}
-            </button>
-          ) : (
-            <SignInModal>
-              <button className="group relative px-8 py-4 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 min-w-[160px]">
-                <span className="relative z-10">CONNECT TO PLAY</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-green-500 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
-              </button>
-            </SignInModal>
-          )}
-
-        </div>
       </div>
     </div>
   );
