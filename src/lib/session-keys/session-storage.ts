@@ -1,12 +1,14 @@
 import { SessionConfig } from "@abstract-foundation/agw-client/sessions";
+import { SESSION_KEY_CONFIG } from "@/config/session-key-config";
 
 const SESSION_KEY = "plinko-session-config";
+const CONFIG_HASH_KEY = "plinko-session-config-hash";
 const BIGINT_PREFIX = "__bigint__";
 
 /**
  * Serialize session config with BigInt support
  */
-function serializeWithBigInt(obj: SessionConfig): string {
+export function serializeWithBigInt(obj: SessionConfig): string {
   return JSON.stringify(obj, (key, value) => {
     if (typeof value === "bigint") {
       return `${BIGINT_PREFIX}${value.toString()}`;
@@ -35,6 +37,7 @@ export function deserializeWithBigInt(json: string): SessionConfig {
 export function saveSessionConfig(config: SessionConfig): void {
   if (typeof window !== "undefined") {
     localStorage.setItem(SESSION_KEY, serializeWithBigInt(config));
+    saveConfigHash();
   }
 }
 
@@ -58,14 +61,59 @@ export function getSessionConfig(): SessionConfig | null {
 }
 
 /**
- * Check if session is still valid based on expiration time
+ * Check if session is still valid based on expiration time and config changes
  */
 export function hasValidSession(): boolean {
   const config = getSessionConfig();
   if (!config) return false;
 
+  // Check if config has changed since session was created
+  if (hasConfigChanged()) {
+    clearSessionConfig(); // Auto-clear if config has changed
+    return false;
+  }
+
   const now = BigInt(Math.floor(Date.now() / 1000));
   return config.expiresAt > now;
+}
+
+/**
+ * Generate a hash of the session config to detect changes
+ */
+function generateConfigHash(config: Omit<SessionConfig, "signer" | "expiresAt">): string {
+  const configForHash = {
+    feeLimit: config.feeLimit,
+    callPolicies: config.callPolicies,
+    transferPolicies: config.transferPolicies,
+  };
+  return btoa(JSON.stringify(configForHash, (_, value) => {
+    if (typeof value === "bigint") {
+      return value.toString();
+    }
+    return value;
+  }));
+}
+
+/**
+ * Check if the current session config matches the stored config hash
+ */
+export function hasConfigChanged(): boolean {
+  if (typeof window === "undefined") return false;
+  
+  const storedHash = localStorage.getItem(CONFIG_HASH_KEY);
+  const currentHash = generateConfigHash(SESSION_KEY_CONFIG);
+  
+  return storedHash !== currentHash;
+}
+
+/**
+ * Save the current config hash to localStorage
+ */
+function saveConfigHash(): void {
+  if (typeof window !== "undefined") {
+    const currentHash = generateConfigHash(SESSION_KEY_CONFIG);
+    localStorage.setItem(CONFIG_HASH_KEY, currentHash);
+  }
 }
 
 /**
@@ -74,5 +122,6 @@ export function hasValidSession(): boolean {
 export function clearSessionConfig(): void {
   if (typeof window !== "undefined") {
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(CONFIG_HASH_KEY);
   }
 }

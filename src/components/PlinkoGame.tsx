@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
 import { useAccount } from 'wagmi';
+import { parseEther } from 'viem';
 import { useAuthSession } from '@/hooks/use-auth-session';
 import { useAbstractSession } from '@/hooks/use-abstract-session';
+import { usePlinkoPlayRound } from '@/hooks/use-plinko-play-round';
 import { PRIMARY_COLOR, PRIMARY_DARK } from '@/lib/colors';
 
 /**
@@ -20,8 +22,20 @@ const PlinkoGame = () => {
   const [isDropping, setIsDropping] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 800, height: 620 });
 
+  // Plinko play round mutation
+  const submitTransactionMutation = usePlinkoPlayRound({
+    onSuccess: (data) => {
+      console.log('Ball drop transaction successful:', data);
+      // Create ball with the outcome from server
+      createBallWithOutcome(data);
+    },
+    onError: (error) => {
+      console.error('Ball drop transaction failed:', error);
+    },
+  });
+
   // Authentication state
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const { data: authSession } = useAuthSession();
   const { data: session } = useAbstractSession();
 
@@ -255,11 +269,87 @@ const PlinkoGame = () => {
   }, [BUCKET_WIDTH]); // Only create physics world once
 
   /**
-   * Creates and drops a new ball with predetermined outcome from server.
-   * Ball physics are subtly guided to reach the server-determined bucket.
+   * Creates a ball with physics and guided outcome
+   */
+  const createBallWithOutcome = useCallback((outcome: { randomSeed: number; targetBucket: number; multiplier: number; nonce: number }) => {
+    if (!engineRef.current) return;
+
+    // Create ball with normal random starting position
+    const ball = Matter.Bodies.circle(
+      CANVAS_WIDTH / 2 + (Math.random() - 0.5) * (CANVAS_WIDTH * 0.05), // Random starting position
+      20, // Start near top
+      BALL_RADIUS,
+      {
+        restitution: 0.6,
+        friction: 0.1,
+        frictionAir: 0.01,
+        density: 0.001,
+        render: {
+          fillStyle: PRIMARY_COLOR, // Modern blue
+          strokeStyle: PRIMARY_DARK, // Darker blue border
+          lineWidth: 2
+        },
+        // Store outcome data for final positioning
+        plugin: {
+          ballOutcome: outcome
+        }
+      }
+    );
+
+    ballsRef.current.push(ball);
+    Matter.World.add(engineRef.current.world, ball);
+
+    // Give ball normal random initial momentum
+    Matter.Body.setVelocity(ball, { x: (Math.random() - 0.5) * 2, y: 2 });
+
+    // Monitor ball and teleport to correct bucket at the last moment
+    const monitorBall = () => {
+      if (!ballsRef.current.includes(ball) || !engineRef.current) return;
+
+      const ballPosition = ball.position;
+
+      // When ball reaches the bucket level, teleport it to the correct bucket
+      if (ballPosition.y >= 580) { // Just above bucket level
+        const targetBucketX = (CANVAS_WIDTH / 17) * (outcome.targetBucket + 0.5);
+
+        // Teleport ball to correct X position while maintaining Y position and velocity
+        Matter.Body.setPosition(ball, {
+          x: targetBucketX,
+          y: ballPosition.y
+        });
+
+        // Ensure ball has downward velocity to hit the bucket
+        Matter.Body.setVelocity(ball, { x: 0, y: Math.max(ball.velocity.y, 2) });
+
+        return; // Stop monitoring after teleport
+      }
+
+      // Continue monitoring
+      if (ballsRef.current.includes(ball)) {
+        requestAnimationFrame(monitorBall);
+      }
+    };
+
+    // Start monitoring immediately
+    monitorBall();
+
+    // Remove ball after 15 seconds
+    setTimeout(() => {
+      const index = ballsRef.current.indexOf(ball);
+      if (index > -1) {
+        ballsRef.current.splice(index, 1);
+        if (engineRef.current) {
+          Matter.World.remove(engineRef.current.world, ball);
+        }
+      }
+    }, 15000);
+  }, [engineRef, CANVAS_WIDTH]);
+
+  /**
+   * Drops a ball by triggering server-controlled randomness and transaction
    */
   const dropBall = useCallback(async () => {
-    if (!engineRef.current || isDropping) return;
+    if (!engineRef.current || isDropping || submitTransactionMutation.isPending) return;
 
     // Require authentication to drop balls
     if (!isFullyAuthenticated) {
@@ -270,101 +360,19 @@ const PlinkoGame = () => {
     setIsDropping(true);
 
     try {
-      // Get predetermined outcome from server
-      const response = await fetch('/api/drop-ball', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+      const betAmount = 0.01; // Default bet amount - can be made configurable
+
+      // Single call to server: generates randomness, signs it, and submits transaction
+      await submitTransactionMutation.mutateAsync({
+        betAmount
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to get ball outcome');
-      }
-
-      const outcome = await response.json();
-
-      // Create ball with normal random starting position
-      const ball = Matter.Bodies.circle(
-        CANVAS_WIDTH / 2 + (Math.random() - 0.5) * (CANVAS_WIDTH * 0.05), // Random starting position
-        20, // Start near top
-        BALL_RADIUS,
-        {
-          restitution: 0.6,
-          friction: 0.1,
-          frictionAir: 0.01,
-          density: 0.001,
-          render: {
-            fillStyle: PRIMARY_COLOR, // Modern blue
-            strokeStyle: PRIMARY_DARK, // Darker blue border
-            lineWidth: 2
-          },
-          // Store outcome data for final positioning
-          plugin: {
-            ballOutcome: {
-              ballId: outcome.ballId,
-              targetBucket: outcome.targetBucket,
-              multiplier: outcome.multiplier,
-              randomNumber: outcome.randomNumber
-            }
-          }
-        }
-      );
-
-      ballsRef.current.push(ball);
-      Matter.World.add(engineRef.current.world, ball);
-
-      // Give ball normal random initial momentum
-      Matter.Body.setVelocity(ball, { x: (Math.random() - 0.5) * 2, y: 2 });
-
-      // Monitor ball and teleport to correct bucket at the last moment
-      const monitorBall = () => {
-        if (!ballsRef.current.includes(ball) || !engineRef.current) return;
-
-        const ballPosition = ball.position;
-
-        // When ball reaches the bucket level, teleport it to the correct bucket
-        if (ballPosition.y >= 580) { // Just above bucket level
-          const targetBucketX = (CANVAS_WIDTH / 17) * (outcome.targetBucket + 0.5);
-
-          // Teleport ball to correct X position while maintaining Y position and velocity
-          Matter.Body.setPosition(ball, {
-            x: targetBucketX,
-            y: ballPosition.y
-          });
-
-          // Ensure ball has downward velocity to hit the bucket
-          Matter.Body.setVelocity(ball, { x: 0, y: Math.max(ball.velocity.y, 2) });
-
-          return; // Stop monitoring after teleport
-        }
-
-        // Continue monitoring
-        if (ballsRef.current.includes(ball)) {
-          requestAnimationFrame(monitorBall);
-        }
-      };
-
-      // Start monitoring immediately
-      monitorBall();
-
-      // Remove ball after 15 seconds
-      setTimeout(() => {
-        const index = ballsRef.current.indexOf(ball);
-        if (index > -1) {
-          ballsRef.current.splice(index, 1);
-          if (engineRef.current) {
-            Matter.World.remove(engineRef.current.world, ball);
-          }
-        }
-      }, 15000);
 
     } catch (error) {
       console.error('Error dropping ball:', error);
     } finally {
       setIsDropping(false);
     }
-  }, [engineRef, isDropping, isFullyAuthenticated, CANVAS_WIDTH]);
+  }, [engineRef, isDropping, isFullyAuthenticated, submitTransactionMutation.mutateAsync, submitTransactionMutation.isPending]);
 
   // Keyboard controls: spacebar to drop balls
   useEffect(() => {
@@ -385,6 +393,25 @@ const PlinkoGame = () => {
     <div className="min-h-[calc(100vh-8rem)]">
       {/* Main Content */}
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-8rem)] p-4 md:p-8">
+        {/* Transaction Status */}
+        {submitTransactionMutation.isPending && (
+          <div className="mb-4 px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium">
+            Processing transaction via session key...
+          </div>
+        )}
+
+        {submitTransactionMutation.isError && submitTransactionMutation.error && (
+          <div className="mb-4 px-4 py-2 bg-red-100 text-red-800 rounded-lg text-sm font-medium">
+            Transaction failed: {submitTransactionMutation.error.message}
+          </div>
+        )}
+
+        {submitTransactionMutation.isSuccess && submitTransactionMutation.data && (
+          <div className="mb-4 px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
+            Transaction successful! Ball dropped. Hash: {submitTransactionMutation.data.hash.slice(0, 10)}...
+          </div>
+        )}
+
         {/* Game Container */}
         <div className="relative mb-6">
           <div className="overflow-hidden relative rounded-2xl"

@@ -8,7 +8,7 @@ import { PLINKO_CONTRACT_ADDRESS } from "./contracts";
 export const DEFAULT_CALL_POLICIES = [
     {
         target: PLINKO_CONTRACT_ADDRESS as `0x${string}`,
-        selector: toFunctionSelector("dropBall(uint256)"),
+        selector: toFunctionSelector("playRound(uint256,uint256,uint256,bytes)"),
         valueLimit: {
             limitType: LimitType.Lifetime,
             limit: parseEther("100"), // Allow up to 100 ETH total for dropping balls
