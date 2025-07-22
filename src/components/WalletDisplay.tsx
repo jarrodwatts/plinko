@@ -106,14 +106,12 @@ export const WalletDisplay = () => {
     return (
         <TooltipProvider>
             <div className="flex items-center gap-2">
-                <Link href="/stats">
-                    <PlayerAvatar
-                        address={address}
-                        fallback={address.slice(0, 2).toUpperCase()}
-                        size="sm"
-                        showTooltip={false}
-                    />
-                </Link>
+                <PlayerAvatar
+                    address={address}
+                    fallback={address.slice(0, 2).toUpperCase()}
+                    size="sm"
+                    showTooltip={false}
+                />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button

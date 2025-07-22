@@ -27,7 +27,7 @@ export const WalletConnectionStep: React.FC<WalletConnectionStepProps> = ({
   }, [isConnected, onComplete]);
 
   if (isConnecting || isReconnecting) {
-    return <LoadingStep loadingText="Connect your wallet in the pop-up window" />;
+    return <LoadingStep loadingText="Connect your wallet in the pop-up window." />;
   }
 
   if (isError) {
@@ -79,7 +79,7 @@ export const WalletConnectionStep: React.FC<WalletConnectionStepProps> = ({
         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00b847'}
         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#00ca51'}
       >
-        Connect Abstract Wallet
+        Connect Abstract Global Wallet
       </button>
     </div>
   );

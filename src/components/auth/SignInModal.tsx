@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/dialog";
 import { SignInFlow } from "./SignInFlow";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 
 interface SignInModalProps {
   children?: React.ReactNode;
@@ -23,9 +22,9 @@ interface SignInModalProps {
  * Main sign-in modal that wraps the multi-step authentication flow
  * Can be triggered by custom children or a default button
  */
-const SignInModal: React.FC<SignInModalProps> = ({ 
-  children, 
-  triggerClassName 
+const SignInModal: React.FC<SignInModalProps> = ({
+  children,
+  triggerClassName
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -37,8 +36,8 @@ const SignInModal: React.FC<SignInModalProps> = ({
     <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
       <DialogTrigger asChild>
         {children || (
-          <Button 
-            variant="default" 
+          <Button
+            variant="default"
             className={triggerClassName}
           >
             Connect Wallet

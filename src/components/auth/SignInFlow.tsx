@@ -10,8 +10,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { WalletConnectionStep } from "./steps/WalletConnectionStep";
 import { SiweAuthStep } from "./steps/SiweAuthStep";
 import { SessionKeyStep } from "./steps/SessionKeyStep";
-import { UserProfileStep } from "./steps/UserProfileStep";
-import { Separator } from "@/components/ui/separator";
 import LoadingStep from "./LoadingStep";
 
 interface SignInFlowProps {
@@ -20,7 +18,7 @@ interface SignInFlowProps {
 
 enum SignInStep {
   WALLET_CONNECTION = "wallet",
-  SIWE_AUTH = "siwe", 
+  SIWE_AUTH = "siwe",
   SESSION_KEY = "session",
   COMPLETED = "completed",
 }
@@ -34,8 +32,8 @@ enum SignInStep {
  */
 export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
   const [currentStep, setCurrentStep] = useState<SignInStep>(SignInStep.WALLET_CONNECTION);
-  
-  const { isConnected } = useAccount();
+
+  const { isConnected, address } = useAccount();
   const { data: authSession, isLoading: isAuthLoading } = useAuthSession();
   const { data: session, isLoading: isSessionLoading } = useAbstractSession();
   const { data: profile, isLoading: isProfileLoading } = useAbstractProfile();
@@ -87,19 +85,17 @@ export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
         {steps.map((step, index) => (
           <div key={step.key} className="flex items-center">
             <div
-              className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                index <= currentStepIndex
-                  ? 'bg-[#00ca51] shadow-sm shadow-[#00ca51]/50'
-                  : 'bg-neutral-600'
-              }`}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${index <= currentStepIndex
+                ? 'bg-[#00ca51] shadow-sm shadow-[#00ca51]/50'
+                : 'bg-neutral-600'
+                }`}
             />
             {index < steps.length - 1 && (
               <div
-                className={`w-6 h-px mx-1.5 transition-all duration-300 opacity-40 ${
-                  index < currentStepIndex
-                    ? 'bg-[#00ca51]'
-                    : 'bg-neutral-600'
-                }`}
+                className={`w-6 h-px mx-1.5 transition-all duration-300 opacity-40 ${index < currentStepIndex
+                  ? 'bg-[#00ca51]'
+                  : 'bg-neutral-600'
+                  }`}
               />
             )}
           </div>
@@ -147,7 +143,7 @@ export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
         return (
           <div className="text-center space-y-4">
             <h3 className="text-xl font-semibold text-[#00ca51]">
-              You're all set!
+              You&rsquo;re all set!
             </h3>
             <p className="text-neutral-400 text-sm">
               Welcome to <strong>Plinko</strong>! You can now drop balls and play without signing every transaction.
@@ -159,8 +155,6 @@ export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
         return <LoadingStep loadingText="Initializing..." />;
     }
   };
-
-  const { address } = useAccount();
 
   return (
     <TooltipProvider>
@@ -176,7 +170,7 @@ export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
             />
           </div>
         )}
-        
+
         <ProgressDots />
         <div className="space-y-4 transition-all duration-500 ease-in-out">
           {renderCurrentStep()}

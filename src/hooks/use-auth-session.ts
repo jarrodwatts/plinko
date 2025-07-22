@@ -49,7 +49,7 @@ export function useAuthSession() {
       }
 
       const data: AuthSessionResponse = await response.json();
-      
+
       if (!data.ok || !data.user) {
         return null;
       }
@@ -58,9 +58,9 @@ export function useAuthSession() {
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
     refetchOnWindowFocus: false,
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: Error & { status?: number }) => {
       // Don't retry if it's a 401 (not authenticated)
-      if (error?.status === 401) {
+      if (error?.status && error?.status === 401) {
         return false;
       }
       // Retry up to 2 times for other errors

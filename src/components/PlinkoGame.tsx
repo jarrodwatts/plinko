@@ -214,20 +214,23 @@ const PlinkoGame = () => {
         isStatic: true,
         render: {
           fillStyle: (() => {
-            // Abstract green theme: VERY small variations of #00d4aa
+            // Primary green theme: variations of #00ca51
             const mult = multipliers[i];
-            if (mult >= 1000) return '#00c499';    // Slightly darker for extreme edges (2500x)
-            if (mult >= 100) return '#00ca9f';     // Tiny bit darker for high payouts (200x)
-            if (mult >= 20) return '#00cfa4';      // Very slight darker for good payouts (24x)
-            if (mult >= 5) return '#00d2a7';       // Barely darker for decent payouts (10x)
-            if (mult >= 2) return '#00d3a8';       // Minimal darker for breaking even (2.4x)
-            if (mult >= 1) return '#00d4aa';       // Base Abstract green for small profit (1.2x)
-            if (mult >= 0.5) return '#00d5ab';     // Barely lighter for small loss (0.6x)
-            if (mult >= 0.2) return '#00d6ac';     // Very slight lighter for bad (0.3x)
-            return '#00d7ad';                      // Tiny bit lighter for center (0.1x)
+            if (mult >= 1000) return '#00b347';    // Darker for extreme edges (2500x)
+            if (mult >= 100) return '#00bb49';     // Darker for high payouts (200x)
+            if (mult >= 20) return '#00c14c';      // Slight darker for good payouts (24x)
+            if (mult >= 5) return '#00c44e';       // Darker for decent payouts (10x)
+            if (mult >= 2) return '#00c750';       // Minimal darker for breaking even (2.4x)
+            if (mult >= 1) return '#00ca51';       // Base primary green for small profit (1.2x)
+            if (mult >= 0.5) return '#00cd53';     // Lighter for small loss (0.6x)
+            if (mult >= 0.2) return '#00d055';     // Lighter for bad (0.3x)
+            return '#00d357';                      // Lightest for center (0.1x)
           })(),
-          strokeStyle: '#00c499',
+          strokeStyle: '#00b347',
           lineWidth: 1
+        },
+        chamfer: {
+          radius: 3
         },
         label: `bucket-${multipliers[i]}` // Used for collision detection
       });
@@ -420,12 +423,11 @@ const PlinkoGame = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: isMobile ? (isHighValue ? '7px' : '8px') : (isHighValue ? '9px' : '10px'),
+                      fontSize: isMobile ? (isHighValue ? '9px' : '10px') : (isHighValue ? '11px' : '12px'),
                       fontFamily: 'system-ui, -apple-system, sans-serif',
-                      fontWeight: isHighValue ? '800' : isMediumValue ? '700' : '600',
+                      fontWeight: '700',
                       letterSpacing: '0.025em',
-                      textShadow: isHighValue ? '1px 1px 3px rgba(0,0,0,0.9)' : '1px 1px 2px rgba(0,0,0,0.8)',
-                      color: isHighValue ? '#fbbf24' : isMediumValue ? '#fde047' : '#ffffff'
+                      color: '#ffffff'
                     }}
                   >
                     {multiplier}x
@@ -467,11 +469,6 @@ const PlinkoGame = () => {
             </SignInModal>
           )}
 
-          {isMobile && isFullyAuthenticated && (
-            <p className="text-xs text-slate-400 text-center max-w-xs">
-              Pro tip: You can also use the spacebar on keyboard for faster drops
-            </p>
-          )}
         </div>
       </div>
     </div>

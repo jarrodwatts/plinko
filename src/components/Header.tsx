@@ -1,46 +1,12 @@
 "use client";
 
 import { useAbstractSession } from "@/hooks/use-abstract-session";
-import {
-  Swords,
-  Users,
-  Gem,
-  Flame,
-  Shield,
-} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import SignInModal from "./auth/SignInModal";
 import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { WalletDisplay } from "./WalletDisplay";
-
-
-const NavLink = ({
-  children,
-  href,
-  icon: Icon,
-}: {
-  children: React.ReactNode;
-  href: string;
-  icon?: React.ComponentType<{ className?: string }>;
-}) => {
-  const isExternal = href.startsWith("http");
-  const linkProps = isExternal
-    ? { target: "_blank" as const, rel: "noopener noreferrer" as const }
-    : {};
-
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-2 text-sm"
-      {...linkProps}
-    >
-      {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
-      <span className="text-white">{children}</span>
-    </Link>
-  );
-};
 
 const Header = () => {
   const { address } = useAccount();

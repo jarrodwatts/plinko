@@ -43,9 +43,9 @@ export function useAbstractProfileByAddress(address: string | undefined) {
     enabled: !!address,
     staleTime: 1000 * 60 * 5, // 5 minutes (longer for other users)
     refetchOnWindowFocus: false,
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: Error & { status?: number }) => {
       // Don't retry if it's a 404 (profile doesn't exist) or similar client errors
-      if (error?.status >= 400 && error?.status < 500) {
+      if (error?.status && error?.status >= 400 && error?.status < 500) {
         return false;
       }
       // Retry up to 2 times for other errors
