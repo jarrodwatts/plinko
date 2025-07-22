@@ -22,25 +22,6 @@ export const PLINKO_CONTRACT_ABI = [
     },
     {
         "type": "function",
-        "name": "MULTIPLIERS",
-        "inputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
         "name": "deposit",
         "inputs": [],
         "outputs": [],
@@ -68,25 +49,6 @@ export const PLINKO_CONTRACT_ABI = [
     },
     {
         "type": "function",
-        "name": "getPlayerBalance",
-        "inputs": [
-            {
-                "name": "player",
-                "type": "address",
-                "internalType": "address"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
         "name": "getPlayerNonce",
         "inputs": [
             {
@@ -95,80 +57,6 @@ export const PLINKO_CONTRACT_ABI = [
                 "internalType": "address"
             }
         ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "getRound",
-        "inputs": [
-            {
-                "name": "roundId",
-                "type": "bytes32",
-                "internalType": "bytes32"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "tuple",
-                "internalType": "struct PlinkoGame.GameRound",
-                "components": [
-                    {
-                        "name": "player",
-                        "type": "address",
-                        "internalType": "address"
-                    },
-                    {
-                        "name": "betAmount",
-                        "type": "uint256",
-                        "internalType": "uint256"
-                    },
-                    {
-                        "name": "randomSeed",
-                        "type": "uint256",
-                        "internalType": "uint256"
-                    },
-                    {
-                        "name": "multiplier",
-                        "type": "uint256",
-                        "internalType": "uint256"
-                    },
-                    {
-                        "name": "payout",
-                        "type": "uint256",
-                        "internalType": "uint256"
-                    },
-                    {
-                        "name": "nonce",
-                        "type": "uint256",
-                        "internalType": "uint256"
-                    },
-                    {
-                        "name": "timestamp",
-                        "type": "uint256",
-                        "internalType": "uint256"
-                    },
-                    {
-                        "name": "claimed",
-                        "type": "bool",
-                        "internalType": "bool"
-                    }
-                ]
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "houseEdge",
-        "inputs": [],
         "outputs": [
             {
                 "name": "",
@@ -247,25 +135,6 @@ export const PLINKO_CONTRACT_ABI = [
     },
     {
         "type": "function",
-        "name": "playerBalances",
-        "inputs": [
-            {
-                "name": "",
-                "type": "address",
-                "internalType": "address"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
         "name": "playerNonces",
         "inputs": [
             {
@@ -279,60 +148,6 @@ export const PLINKO_CONTRACT_ABI = [
                 "name": "",
                 "type": "uint256",
                 "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "rounds",
-        "inputs": [
-            {
-                "name": "",
-                "type": "bytes32",
-                "internalType": "bytes32"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "player",
-                "type": "address",
-                "internalType": "address"
-            },
-            {
-                "name": "betAmount",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "randomSeed",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "multiplier",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "payout",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "nonce",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "timestamp",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "claimed",
-                "type": "bool",
-                "internalType": "bool"
             }
         ],
         "stateMutability": "view"
@@ -370,45 +185,12 @@ export const PLINKO_CONTRACT_ABI = [
     },
     {
         "type": "function",
-        "name": "setHouseEdge",
-        "inputs": [
-            {
-                "name": "_houseEdge",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
         "name": "setServerSigner",
         "inputs": [
             {
                 "name": "_serverSigner",
                 "type": "address",
                 "internalType": "address"
-            }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "withdraw",
-        "inputs": [],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "withdrawPartial",
-        "inputs": [
-            {
-                "name": "amount",
-                "type": "uint256",
-                "internalType": "uint256"
             }
         ],
         "outputs": [],
@@ -518,11 +300,6 @@ export const PLINKO_CONTRACT_ABI = [
     {
         "type": "error",
         "name": "InvalidSignature",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "RoundAlreadyExists",
         "inputs": []
     },
     {
