@@ -4,6 +4,7 @@ import React from "react";
 import { useSiweAuth } from "@/hooks/use-siwe-auth";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import LoadingStep from "../LoadingStep";
+import { PRIMARY_COLOR, PRIMARY_HOVER } from "@/lib/colors";
 
 interface SiweAuthStepProps {
   onComplete: () => void;
@@ -58,9 +59,9 @@ export const SiweAuthStep: React.FC<SiweAuthStepProps> = ({ onComplete }) => {
         <button
           onClick={() => signIn()}
           className="w-full text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
-          style={{ backgroundColor: '#00ca51', borderColor: '#00ca51', cursor: 'pointer' }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00b847'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#00ca51'}
+          style={{ backgroundColor: PRIMARY_COLOR, borderColor: PRIMARY_COLOR, cursor: 'pointer' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = PRIMARY_HOVER}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = PRIMARY_COLOR}
         >
           Try Again
         </button>
@@ -84,9 +85,9 @@ export const SiweAuthStep: React.FC<SiweAuthStepProps> = ({ onComplete }) => {
       <button
         onClick={() => signIn()}
         className="w-full text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
-        style={{ backgroundColor: '#00ca51', borderColor: '#00ca51', cursor: 'pointer' }}
-        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00b847'}
-        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#00ca51'}
+        style={{ backgroundColor: PRIMARY_COLOR, borderColor: PRIMARY_COLOR, cursor: 'pointer' }}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = PRIMARY_HOVER}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = PRIMARY_COLOR}
       >
         Sign Message
       </button>

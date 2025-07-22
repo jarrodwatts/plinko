@@ -5,6 +5,7 @@ import Matter from 'matter-js';
 import { useAccount } from 'wagmi';
 import { useAuthSession } from '@/hooks/use-auth-session';
 import { useAbstractSession } from '@/hooks/use-abstract-session';
+import { PRIMARY_COLOR, PRIMARY_DARK } from '@/lib/colors';
 
 /**
  * A fully responsive Plinko game built with Matter.js physics engine.
@@ -213,19 +214,19 @@ const PlinkoGame = () => {
         isStatic: true,
         render: {
           fillStyle: (() => {
-            // Primary green theme: variations of #00ca51
+            // Primary blue theme: variations of #1475E1
             const mult = multipliers[i];
-            if (mult >= 1000) return '#00b347';    // Darker for extreme edges (2500x)
-            if (mult >= 100) return '#00bb49';     // Darker for high payouts (200x)
-            if (mult >= 20) return '#00c14c';      // Slight darker for good payouts (24x)
-            if (mult >= 5) return '#00c44e';       // Darker for decent payouts (10x)
-            if (mult >= 2) return '#00c750';       // Minimal darker for breaking even (2.4x)
-            if (mult >= 1) return '#00ca51';       // Base primary green for small profit (1.2x)
-            if (mult >= 0.5) return '#00cd53';     // Lighter for small loss (0.6x)
-            if (mult >= 0.2) return '#00d055';     // Lighter for bad (0.3x)
-            return '#00d357';                      // Lightest for center (0.1x)
+            if (mult >= 1000) return '#0F5BA8';    // Darker for extreme edges (110x)
+            if (mult >= 100) return '#1165C7';     // Darker for high payouts (42x)
+            if (mult >= 20) return '#1269D3';      // Slight darker for good payouts (10x)
+            if (mult >= 5) return '#1370DB';       // Darker for decent payouts (5x)
+            if (mult >= 2) return '#1473DE';       // Minimal darker for breaking even (3x)
+            if (mult >= 1) return '#1475E1';       // Base primary blue for small profit (1.5x, 1x)
+            if (mult >= 0.5) return '#2A82E6';     // Lighter for small loss (0.5x)
+            if (mult >= 0.2) return '#4A90E6';     // Lighter for bad (0.3x)
+            return '#4A90E6';                      // Same light blue for center (0.3x)
           })(),
-          strokeStyle: '#00b347',
+          strokeStyle: '#0F5BA8',
           lineWidth: 1
         },
         chamfer: {
@@ -294,8 +295,8 @@ const PlinkoGame = () => {
           frictionAir: 0.01,
           density: 0.001,
           render: {
-            fillStyle: '#10b981', // Modern emerald
-            strokeStyle: '#065f46', // Darker emerald border
+            fillStyle: PRIMARY_COLOR, // Modern blue
+            strokeStyle: PRIMARY_DARK, // Darker blue border
             lineWidth: 2
           },
           // Store outcome data for final positioning

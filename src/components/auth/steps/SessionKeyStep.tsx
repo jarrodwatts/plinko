@@ -4,6 +4,7 @@ import React from "react";
 import { useAbstractSession } from "@/hooks/use-abstract-session";
 import { useCreateAbstractSession } from "@/hooks/use-create-abstract-session";
 import LoadingStep from "../LoadingStep";
+import { PRIMARY_COLOR, PRIMARY_HOVER } from "@/lib/colors";
 
 interface SessionKeyStepProps {
   onComplete: () => void;
@@ -45,7 +46,7 @@ export const SessionKeyStep: React.FC<SessionKeyStepProps> = ({
   }
 
   if (isCreatingSession) {
-    return <LoadingStep loadingText="Creating your session key..." />;
+    return <LoadingStep loadingText="Create a session key in the pop-up window." />;
   }
 
   if (session) {
@@ -64,9 +65,9 @@ export const SessionKeyStep: React.FC<SessionKeyStepProps> = ({
         <button
           onClick={() => refetch()}
           className="w-full text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
-          style={{ backgroundColor: '#00ca51', borderColor: '#00ca51', cursor: 'pointer' }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00b847'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#00ca51'}
+          style={{ backgroundColor: PRIMARY_COLOR, borderColor: PRIMARY_COLOR, cursor: 'pointer' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = PRIMARY_HOVER}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = PRIMARY_COLOR}
         >
           Try Again
         </button>
@@ -80,20 +81,41 @@ export const SessionKeyStep: React.FC<SessionKeyStepProps> = ({
         <div className="text-red-400">
           <h3 className="text-lg font-semibold mb-2 text-red-400">Session Creation Failed</h3>
           <p className="text-sm">
-            {createSessionError.message.includes("UserRejectedRequest")
-              ? "Please approve the session creation in your wallet"
-              : "Error creating session. Please try again."}
+            {(() => {
+              const errorMsg = createSessionError.message.toLowerCase();
+              if (errorMsg.includes("userrejectedrequest") || errorMsg.includes("user rejected")) {
+                return "Please create the session key in the pop-up window.";
+              }
+              if (errorMsg.includes("popup") || errorMsg.includes("blocked")) {
+                return "Pop-up window was blocked. Please allow pop-ups for this site and try again";
+              }
+              if (errorMsg.includes("closed") || errorMsg.includes("window closed")) {
+                return "Pop-up window was closed. Please complete the session creation process";
+              }
+              if (errorMsg.includes("timeout") || errorMsg.includes("timed out")) {
+                return "Session creation timed out. Please try again";
+              }
+              return "Error creating session. Please ensure pop-ups are enabled and try again.";
+            })()}
           </p>
         </div>
-        <button
-          onClick={() => createSession()}
-          className="w-full text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
-          style={{ backgroundColor: '#00ca51', borderColor: '#00ca51', cursor: 'pointer' }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00b847'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#00ca51'}
-        >
-          Try Again
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={() => createSession()}
+            className="w-full text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+            style={{ backgroundColor: PRIMARY_COLOR, borderColor: PRIMARY_COLOR, cursor: 'pointer' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = PRIMARY_HOVER}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = PRIMARY_COLOR}
+          >
+            Try Again
+          </button>
+          {(createSessionError.message.toLowerCase().includes("popup") ||
+            createSessionError.message.toLowerCase().includes("blocked")) && (
+              <p className="text-xs text-neutral-500">
+                <span className="text-blue-400">💡 Tip:</span> Check if pop-ups are blocked in your browser settings
+              </p>
+            )}
+        </div>
       </div>
     );
   }
@@ -109,9 +131,9 @@ export const SessionKeyStep: React.FC<SessionKeyStepProps> = ({
       <button
         onClick={() => createSession()}
         className="w-full text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
-        style={{ backgroundColor: '#00ca51', borderColor: '#00ca51', cursor: 'pointer' }}
-        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00b847'}
-        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#00ca51'}
+        style={{ backgroundColor: PRIMARY_COLOR, borderColor: PRIMARY_COLOR, cursor: 'pointer' }}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = PRIMARY_HOVER}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = PRIMARY_COLOR}
       >
         Create Session Key
       </button>

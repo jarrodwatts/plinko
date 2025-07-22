@@ -1,5 +1,6 @@
 import React from "react";
 import Image from "next/image";
+import { PRIMARY_COLOR, PRIMARY_LIGHT } from "@/lib/colors";
 
 interface LoadingStepProps {
   loadingText: string;
@@ -9,15 +10,15 @@ const LoadingStep: React.FC<LoadingStepProps> = ({ loadingText }) => {
   return (
     <>
       <style>
-        {`
+{`
           @keyframes pulse-glow {
             0%, 100% {
               opacity: 1;
-              filter: drop-shadow(0 0 5px #22C55E);
+              filter: drop-shadow(0 0 5px ${PRIMARY_COLOR});
             }
             50% {
               opacity: 0.8;
-              filter: drop-shadow(0 0 15px #4ADE80);
+              filter: drop-shadow(0 0 15px ${PRIMARY_LIGHT});
             }
           }
           .animate-pulse-glow {

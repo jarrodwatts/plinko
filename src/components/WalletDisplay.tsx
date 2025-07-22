@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useAccount, useBalance } from "wagmi";
 import { useLoginWithAbstract } from "@abstract-foundation/agw-react";
+import { PRIMARY_COLOR } from "@/lib/colors";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -115,7 +116,20 @@ export const WalletDisplay = () => {
                     <DropdownMenuTrigger asChild>
                         <Button
                             variant="ghost"
-                            className="group flex items-center rounded-lg border border-[#00ca51]/40 bg-[#00ca51]/20 p-2 text-[#00ca51] animate-pulse-glow hover:bg-[#00ca51]/30 hover:text-white"
+                            className="group flex items-center rounded-lg border border-opacity-40 bg-opacity-20 p-2 animate-pulse-glow hover:bg-opacity-30 hover:text-white"
+                            style={{ 
+                                borderColor: `${PRIMARY_COLOR}66`, 
+                                backgroundColor: `${PRIMARY_COLOR}33`, 
+                                color: PRIMARY_COLOR 
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = `${PRIMARY_COLOR}4D`;
+                                e.currentTarget.style.color = 'white';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = `${PRIMARY_COLOR}33`;
+                                e.currentTarget.style.color = PRIMARY_COLOR;
+                            }}
                         >
                             <WalletIcon />
                             {balance ? Number(balance.formatted).toFixed(4).replace(/\.?0+$/, '') : '0'} ETH
@@ -137,7 +151,7 @@ export const WalletDisplay = () => {
                                 disabled={copied}
                             >
                                 {copied ? (
-                                    <span className="text-[#00ca51] h-4 w-4 flex items-center justify-center text-xs">✓</span>
+                                    <span className="h-4 w-4 flex items-center justify-center text-xs" style={{ color: PRIMARY_COLOR }}>✓</span>
                                 ) : (
                                     <CopyIcon className="h-4 w-4" />
                                 )}

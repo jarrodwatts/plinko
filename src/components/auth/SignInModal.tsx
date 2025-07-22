@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { SignInFlow } from "./SignInFlow";
 import { Button } from "@/components/ui/button";
+import { useAccount } from "wagmi";
+import { PlayerAvatar } from "@/components/ui/PlayerAvatar";
 
 interface SignInModalProps {
   children?: React.ReactNode;
@@ -27,6 +29,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
   triggerClassName
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { address, isConnected } = useAccount();
 
   const handleComplete = () => {
     setIsModalOpen(false);
@@ -50,6 +53,17 @@ const SignInModal: React.FC<SignInModalProps> = ({
           <DialogHeader className="sr-only">
             <DialogTitle>Connect Wallet</DialogTitle>
           </DialogHeader>
+          {/* User avatar in top left corner of modal when connected */}
+          {isConnected && address && (
+            <div className="absolute top-4 left-4 z-20">
+              <PlayerAvatar
+                address={address}
+                fallback={address.slice(2, 4).toUpperCase()}
+                size="sm"
+                showTooltip={true}
+              />
+            </div>
+          )}
           <div className="p-2 relative">
             <SignInFlow onComplete={handleComplete} />
           </div>

@@ -82,7 +82,7 @@ export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
     const currentStepIndex = getCurrentStepIndex();
 
     return (
-      <div className="flex items-center justify-center mb-4">
+      <div className="flex items-center justify-center mb-4" style={{ marginTop: '-8px' }}>
         {steps.map((step, index) => (
           <div key={step.key} className="flex items-center">
             <div
@@ -152,7 +152,7 @@ export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
               You&rsquo;re all set!
             </h3>
             <p className="text-neutral-400 text-sm">
-              Welcome to <strong>Plinko</strong>! You can now drop balls and play without signing every transaction.
+              Welcome to <strong>Blue Balls</strong>! You can now drop balls and play without signing every transaction.
             </p>
           </div>
         );
@@ -165,17 +165,6 @@ export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
   return (
     <TooltipProvider>
       <div className="flex flex-col transition-all duration-500 ease-in-out">
-        {/* User avatar in top left when connected */}
-        {isConnected && address && (
-          <div className="absolute top-4 left-4">
-            <PlayerAvatar
-              address={address}
-              fallback={address.slice(2, 4).toUpperCase()}
-              size="sm"
-              showTooltip={true}
-            />
-          </div>
-        )}
 
         <ProgressDots />
         <div className="space-y-4 transition-all duration-500 ease-in-out">

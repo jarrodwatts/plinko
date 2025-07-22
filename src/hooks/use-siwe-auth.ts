@@ -30,7 +30,7 @@ export function useSiweAuth() {
       const message = new SiweMessage({
         domain: window.location.host,
         address,
-        statement: "Sign in to Plinko with Ethereum",
+        statement: "Sign in to Blue Balls with Ethereum",
         uri: window.location.origin,
         version: "1",
         chainId: abstractTestnet.id,

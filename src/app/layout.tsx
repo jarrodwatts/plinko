@@ -8,12 +8,12 @@ import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: {
-    default: "Abstract Plinko",
-    template: "%s | Abstract Plinko",
+    default: "Blue Balls",
+    template: "%s | Blue Balls",
   },
-  description: "A crypto-based Plinko game on Abstract Chain where every ball drop is an on-chain transaction",
+  description: "A crypto-based Blue Balls game on Abstract Chain where every ball drop is an on-chain transaction",
   keywords: [
-    "Plinko",
+    "Blue Balls",
     "Crypto Game",
     "Abstract Chain",
     "Web3",
@@ -29,14 +29,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    title: "Abstract Plinko",
-    description: "A crypto-based Plinko game on Abstract Chain where every ball drop is an on-chain transaction",
-    siteName: "Abstract Plinko",
+    title: "Blue Balls",
+    description: "A crypto-based Blue Balls game on Abstract Chain where every ball drop is an on-chain transaction",
+    siteName: "Blue Balls",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Abstract Plinko",
-    description: "A crypto-based Plinko game on Abstract Chain where every ball drop is an on-chain transaction",
+    title: "Blue Balls",
+    description: "A crypto-based Blue Balls game on Abstract Chain where every ball drop is an on-chain transaction",
   },
   icons: {
     icon: "/favicon.ico",
