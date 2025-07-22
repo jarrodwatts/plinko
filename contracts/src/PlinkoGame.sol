@@ -2,99 +2,59 @@
 pragma solidity ^0.8.13;
 
 contract PlinkoGame {
-    struct GameRound {
-        address player;
-        uint256 betAmount;
-        uint256 randomSeed;
-        uint256 multiplier;
-        uint256 payout;
-        uint256 nonce;
-        uint256 timestamp;
-        bool claimed;
-    }
-
-    // Plinko multipliers: [110x, 42x, 10x, 5x, 3x, 1.5x, 1x, 0.5x, 0.3x, 0.5x, 1x, 1.5x, 3x, 5x, 10x, 42x, 110x]
-    uint256[17] public MULTIPLIERS = [
-        11000, 4200, 1000, 500, 300, 150, 100, 50, 30, 50, 100, 150, 300, 500, 1000, 4200, 11000
-    ];
-
-    mapping(bytes32 => GameRound) public rounds;
+    // Player nonce to prevent replay attacks
     mapping(address => uint256) public playerNonces;
-    mapping(address => uint256) public playerBalances;
 
+    // Server signer to verify server signatures
     address public serverSigner;
+
+    // Owner of the contract
     address public owner;
+
+    // Minimum and maximum bet amounts
     uint256 public minBet = 0.001 ether;
     uint256 public maxBet = 1 ether;
-    uint256 public houseEdge = 200; // 2% (basis points)
 
-    event RoundPlayed(
-        bytes32 indexed roundId,
-        address indexed player,
-        uint256 betAmount,
-        uint256 randomSeed,
-        uint256 multiplier,
-        uint256 payout
-    );
-
-    event Withdrawal(address indexed player, uint256 amount);
-    event Deposit(address indexed player, uint256 amount);
-
-    error InvalidSignature();
-    error InvalidBetAmount();
-    error InvalidNonce();
-    error InvalidMultiplier();
-    error RoundAlreadyExists();
-    error InsufficientContractBalance();
-    error TransferFailed();
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Not owner");
-        _;
-    }
-
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                        CONSTRUCTOR                         */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
     constructor(address _serverSigner) {
         owner = msg.sender;
         serverSigner = _serverSigner;
     }
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                      PUBLIC FUNCTIONS                      */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
     function playRound(
         uint256 randomSeed,
         uint256 multiplier,
         uint256 nonce,
         bytes calldata serverSignature
     ) external payable {
+        // Ensure bet amount is within bounds
         if (msg.value < minBet || msg.value > maxBet) {
             revert InvalidBetAmount();
         }
 
+        // Ensure isn't replaying the same claim
         if (nonce != playerNonces[msg.sender]) {
             revert InvalidNonce();
-        }
-
-        // Verify multiplier is valid
-        bool validMultiplier = false;
-        for (uint i = 0; i < MULTIPLIERS.length; i++) {
-            if (multiplier == MULTIPLIERS[i]) {
-                validMultiplier = true;
-                break;
-            }
-        }
-        if (!validMultiplier) {
-            revert InvalidMultiplier();
         }
 
         // Create message hash for signature verification
         bytes32 messageHash = keccak256(
             abi.encodePacked(
                 "\x19Ethereum Signed Message:\n32",
-                keccak256(abi.encodePacked(
-                    msg.sender,
-                    msg.value,
-                    randomSeed,
-                    multiplier,
-                    nonce
-                ))
+                keccak256(
+                    abi.encodePacked(
+                        msg.sender,
+                        msg.value,
+                        randomSeed,
+                        multiplier,
+                        nonce
+                    )
+                )
             )
         );
 
@@ -104,75 +64,35 @@ contract PlinkoGame {
             revert InvalidSignature();
         }
 
-        // Generate unique round ID
-        bytes32 roundId = keccak256(abi.encodePacked(
-            msg.sender,
-            randomSeed,
-            nonce,
-            block.timestamp
-        ));
-
-        if (rounds[roundId].player != address(0)) {
-            revert RoundAlreadyExists();
-        }
-
-        // Calculate payout (apply house edge)
-        uint256 grossPayout = (msg.value * multiplier) / 100;
-        uint256 houseEdgeAmount = (grossPayout * houseEdge) / 10000;
-        uint256 netPayout = grossPayout - houseEdgeAmount;
+        // Calculate payout (house edge built into probability matrix)
+        uint256 payout = (msg.value * multiplier) / 100;
 
         // Check contract has enough balance for payout
-        if (netPayout > address(this).balance) {
+        if (payout > address(this).balance) {
             revert InsufficientContractBalance();
         }
-
-        // Store round data
-        rounds[roundId] = GameRound({
-            player: msg.sender,
-            betAmount: msg.value,
-            randomSeed: randomSeed,
-            multiplier: multiplier,
-            payout: netPayout,
-            nonce: nonce,
-            timestamp: block.timestamp,
-            claimed: false
-        });
 
         // Increment player nonce
         playerNonces[msg.sender]++;
 
-        // Add payout to player balance
-        playerBalances[msg.sender] += netPayout;
-
-        emit RoundPlayed(roundId, msg.sender, msg.value, randomSeed, multiplier, netPayout);
-    }
-
-    function withdraw() external {
-        uint256 balance = playerBalances[msg.sender];
-        require(balance > 0, "No balance to withdraw");
-
-        playerBalances[msg.sender] = 0;
-
-        (bool success, ) = payable(msg.sender).call{value: balance}("");
-        if (!success) {
-            revert TransferFailed();
+        // Instant payout to player
+        if (payout > 0) {
+            (bool success, ) = payable(msg.sender).call{value: payout}("");
+            if (!success) {
+                revert TransferFailed();
+            }
         }
 
-        emit Withdrawal(msg.sender, balance);
-    }
-
-    function withdrawPartial(uint256 amount) external {
-        require(amount > 0, "Invalid amount");
-        require(playerBalances[msg.sender] >= amount, "Insufficient balance");
-
-        playerBalances[msg.sender] -= amount;
-
-        (bool success, ) = payable(msg.sender).call{value: amount}("");
-        if (!success) {
-            revert TransferFailed();
-        }
-
-        emit Withdrawal(msg.sender, amount);
+        emit RoundPlayed(
+            keccak256(
+                abi.encodePacked(msg.sender, randomSeed, nonce, block.timestamp)
+            ),
+            msg.sender,
+            msg.value,
+            randomSeed,
+            multiplier,
+            payout
+        );
     }
 
     function deposit() external payable {
@@ -180,7 +100,10 @@ contract PlinkoGame {
         emit Deposit(msg.sender, msg.value);
     }
 
-    // Admin functions
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                      ADMIN FUNCTIONS                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     function setServerSigner(address _serverSigner) external onlyOwner {
         serverSigner = _serverSigner;
     }
@@ -190,18 +113,21 @@ contract PlinkoGame {
         maxBet = _maxBet;
     }
 
-    function setHouseEdge(uint256 _houseEdge) external onlyOwner {
-        require(_houseEdge <= 1000, "House edge too high"); // Max 10%
-        houseEdge = _houseEdge;
-    }
-
     function emergencyWithdraw() external onlyOwner {
-        (bool success, ) = payable(owner).call{value: address(this).balance}("");
+        (bool success, ) = payable(owner).call{value: address(this).balance}(
+            ""
+        );
         require(success, "Transfer failed");
     }
 
-    // Internal functions
-    function _recoverSigner(bytes32 messageHash, bytes memory signature) internal pure returns (address) {
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     INTERNAL FUNCTIONS                     */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    function _recoverSigner(
+        bytes32 messageHash,
+        bytes memory signature
+    ) internal pure returns (address) {
         if (signature.length != 65) {
             return address(0);
         }
@@ -227,14 +153,9 @@ contract PlinkoGame {
         return ecrecover(messageHash, v, r, s);
     }
 
-    // View functions
-    function getRound(bytes32 roundId) external view returns (GameRound memory) {
-        return rounds[roundId];
-    }
-
-    function getPlayerBalance(address player) external view returns (uint256) {
-        return playerBalances[player];
-    }
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       VIEW FUNCTIONS                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     function getPlayerNonce(address player) external view returns (uint256) {
         return playerNonces[player];
@@ -244,7 +165,47 @@ contract PlinkoGame {
         return address(this).balance;
     }
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     RECEIVE / FALLBACK                     */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     receive() external payable {
         emit Deposit(msg.sender, msg.value);
     }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                         MODIFIERS                          */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          ERRORS                             */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    error InvalidSignature();
+    error InvalidBetAmount();
+    error InvalidNonce();
+    error InvalidMultiplier();
+    error InsufficientContractBalance();
+    error TransferFailed();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          EVENTS                            */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    event RoundPlayed(
+        bytes32 indexed roundId,
+        address indexed player,
+        uint256 betAmount,
+        uint256 randomSeed,
+        uint256 multiplier,
+        uint256 payout
+    );
+
+    event Withdrawal(address indexed player, uint256 amount);
+    event Deposit(address indexed player, uint256 amount);
 }

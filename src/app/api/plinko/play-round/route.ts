@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createPublicClient, http, parseEther, keccak256, encodePacked, parseAbi, type Address } from 'viem';
+import { parseEther, keccak256, encodePacked, parseAbi, type Address } from 'viem';
 import { PrivyClient } from '@privy-io/server-auth';
 import { createViemAccount } from '@privy-io/server-auth/viem';
 import { createSessionClient } from '@abstract-foundation/agw-client/sessions';
@@ -10,34 +10,22 @@ import { chain } from '@/config/chain';
 import { PLINKO_CONTRACT_ADDRESS, PLINKO_CONTRACT_ABI } from '@/config/contracts';
 import { publicClient } from '@/lib/viem/public-client';
 import { deserializeWithBigInt } from '@/lib/session-keys/session-storage';
-
-// Plinko multipliers matching the smart contract
-const MULTIPLIERS = [
-  11000, 4200, 1000, 500, 300, 150, 100, 50, 30, 50, 100, 150, 300, 500, 1000, 4200, 11000
-];
-
-// Iron session options - should match other routes
-const ironOptions = {
-  cookieName: "plinko_auth_session",
-  password: process.env.IRON_SESSION_PASSWORD!,
-  cookieOptions: {
-    secure: process.env.NODE_ENV === "production",
-    httpOnly: true,
-    sameSite: "lax" as const,
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-  },
-};
+import { randomBytes } from 'crypto';
+import { ironOptions } from '@/config/iron-options';
+import { CONTAINER_PROBABILITIES, PRECISION } from '@/config/probabilities';
 
 export async function POST(request: NextRequest) {
   try {
+    // Destructure the request body
     const body = await request.json();
     const { sessionConfig: rawSessionConfig, betAmount } = body;
+
+    // Format items from the request body
+    const sessionConfig = deserializeWithBigInt(rawSessionConfig);
     const betAmountWei = parseEther(betAmount.toString());
 
     // Setup required environment variables
     const { PRIVY_APP_ID: privyAppId, PRIVY_APP_SECRET: privyAppSecret, PRIVY_SERVER_WALLET_ID: serverWalletId, PRIVY_SERVER_WALLET_ADDRESS: serverWalletAddress } = process.env;
-
-    // Get bet amount from request body
 
     // Get iron session for authentication status and player address
     const { isAuthenticated, address: playerAddress } = await getIronSession<AuthSessionData>(
@@ -60,10 +48,8 @@ export async function POST(request: NextRequest) {
       args: [playerAddress as `0x${string}`]
     });
 
-    // Generate random outcome (server-controlled)
-    const randomSeed = Math.floor(Math.random() * 1000000);
-    const targetBucket = generatePlinkoOutcome(randomSeed);
-    const multiplier = MULTIPLIERS[targetBucket];
+    // Generate cryptographically secure random outcome
+    const { randomSeed, targetBucket, multiplier } = generateProbabilityBasedOutcome();
 
     // Create message hash for signing (proves randomness authenticity)
     const messageHash = keccak256(
@@ -86,17 +72,6 @@ export async function POST(request: NextRequest) {
       message: { raw: messageHash }
     });
 
-    // Get session configuration from request
-    if (!rawSessionConfig) {
-      return NextResponse.json(
-        { error: 'Session configuration required' },
-        { status: 400 }
-      );
-    }
-
-    const sessionConfig = deserializeWithBigInt(rawSessionConfig);
-
-
     // Initialize the AGW Session client for transaction submission
     const agwSessionClient = createSessionClient({
       account: playerAddress,
@@ -110,7 +85,7 @@ export async function POST(request: NextRequest) {
       account: playerAddress,
       chain: chain,
       address: PLINKO_CONTRACT_ADDRESS,
-      abi: parseAbi(["function playRound(uint256,uint256,uint256,bytes) external payable"]),
+      abi: PLINKO_CONTRACT_ABI,
       functionName: "playRound",
       args: [BigInt(randomSeed), BigInt(multiplier), BigInt(nonce), signature],
       value: betAmountWei,
@@ -135,27 +110,44 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Simplified Plinko outcome generation
-function generatePlinkoOutcome(seed: number): number {
-  let random = seed;
-  const rows = 16;
-  let position = 8.5;
+// Pre-compute the inclusive upper bound for each bucket so we can binary-search instead of scanning
+const BUCKET_ENDS = CONTAINER_PROBABILITIES.map(c => c.range[1]);
 
-  for (let row = 0; row < rows; row++) {
-    random = (random * 1103515245 + 12345) & 0x7fffffff;
-    const direction = (random / 0x7fffffff) > 0.5 ? 1 : -1;
-    const movement = direction * (0.3 + (random % 100) / 500);
-    position += movement;
+/**
+ * Binary search helper – returns the index of the first BUCKET_END >= value.
+ * All arrays are tiny (17 entries) but this is O(log n) and conceptually clearer.
+ */
+function bucketIndexFor(value: number): number {
+  let left = 0;
+  let right = BUCKET_ENDS.length - 1;
+
+  while (left < right) {
+    const mid = (left + right) >>> 1; // unsigned shift for fast floor(div 2)
+    if (value <= BUCKET_ENDS[mid]) {
+      right = mid;
+    } else {
+      left = mid + 1;
+    }
   }
+  return left;
+}
 
-  let bucket = Math.floor(position);
-  bucket = Math.max(0, Math.min(16, bucket));
+// Generate cryptographically secure random outcome based on probability matrix
+function generateProbabilityBasedOutcome(): { randomSeed: number; targetBucket: number; multiplier: number } {
+  // Generate cryptographically secure random bytes
+  const randomBuffer = randomBytes(4);
+  const randomSeed = randomBuffer.readUInt32BE(0);
 
-  // Add slight bias toward center buckets
-  if (Math.random() < 0.1) {
-    const centerBias = Math.random() < 0.5 ? -1 : 1;
-    bucket = Math.max(0, Math.min(16, bucket + centerBias));
-  }
+  // Convert to 0-PRECISION range for probability mapping
+  const probabilityRoll = randomSeed % PRECISION;
 
-  return bucket;
+  // Find the container using binary search over the bucket ends
+  const index = bucketIndexFor(probabilityRoll);
+  const container = CONTAINER_PROBABILITIES[index];
+
+  return {
+    randomSeed,
+    targetBucket: index,
+    multiplier: container.multiplier
+  };
 }

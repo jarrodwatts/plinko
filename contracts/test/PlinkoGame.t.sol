@@ -48,7 +48,6 @@ contract PlinkoGameTest is Test {
         assertEq(plinkoGame.serverSigner(), computedServerSigner);
         assertEq(plinkoGame.minBet(), 0.001 ether);
         assertEq(plinkoGame.maxBet(), 1 ether);
-        assertEq(plinkoGame.houseEdge(), 200); // 2%
     }
     
     function testPlayRound() public {
@@ -60,17 +59,19 @@ contract PlinkoGameTest is Test {
         // Create signature
         bytes memory signature = _createSignature(player1, betAmount, randomSeed, multiplier, nonce);
         
+        // Record initial player balance
+        uint256 initialPlayerBalance = player1.balance;
+        
         vm.prank(player1);
         plinkoGame.playRound{value: betAmount}(randomSeed, multiplier, nonce, signature);
         
         // Check nonce incremented
         assertEq(plinkoGame.getPlayerNonce(player1), 1);
         
-        // Check balance updated (with house edge)
-        uint256 expectedGrossPayout = (betAmount * multiplier) / 100;
-        uint256 expectedHouseEdge = (expectedGrossPayout * 200) / 10000;
-        uint256 expectedNetPayout = expectedGrossPayout - expectedHouseEdge;
-        assertEq(plinkoGame.getPlayerBalance(player1), expectedNetPayout);
+        // Check instant payout (no house edge calculation, handled by probability matrix)
+        uint256 expectedPayout = (betAmount * multiplier) / 100;
+        uint256 expectedFinalBalance = initialPlayerBalance - betAmount + expectedPayout;
+        assertEq(player1.balance, expectedFinalBalance);
     }
     
     function testPlayRoundInvalidBet() public {
@@ -127,50 +128,6 @@ contract PlinkoGameTest is Test {
         plinkoGame.playRound{value: betAmount}(randomSeed, multiplier, nonce, wrongSignature);
     }
     
-    function testWithdraw() public {
-        // First play a round to have balance
-        uint256 betAmount = 0.1 ether;
-        uint256 randomSeed = 12345;
-        uint256 multiplier = 300;
-        uint256 nonce = 0;
-        
-        bytes memory signature = _createSignature(player1, betAmount, randomSeed, multiplier, nonce);
-        
-        vm.prank(player1);
-        plinkoGame.playRound{value: betAmount}(randomSeed, multiplier, nonce, signature);
-        
-        uint256 balance = plinkoGame.getPlayerBalance(player1);
-        uint256 initialPlayerBalance = player1.balance;
-        
-        vm.prank(player1);
-        plinkoGame.withdraw();
-        
-        assertEq(plinkoGame.getPlayerBalance(player1), 0);
-        assertEq(player1.balance, initialPlayerBalance + balance);
-    }
-    
-    function testWithdrawPartial() public {
-        // First play a round to have balance
-        uint256 betAmount = 0.1 ether;
-        uint256 randomSeed = 12345;
-        uint256 multiplier = 300;
-        uint256 nonce = 0;
-        
-        bytes memory signature = _createSignature(player1, betAmount, randomSeed, multiplier, nonce);
-        
-        vm.prank(player1);
-        plinkoGame.playRound{value: betAmount}(randomSeed, multiplier, nonce, signature);
-        
-        uint256 totalBalance = plinkoGame.getPlayerBalance(player1);
-        uint256 withdrawAmount = totalBalance / 2;
-        uint256 initialPlayerBalance = player1.balance;
-        
-        vm.prank(player1);
-        plinkoGame.withdrawPartial(withdrawAmount);
-        
-        assertEq(plinkoGame.getPlayerBalance(player1), totalBalance - withdrawAmount);
-        assertEq(player1.balance, initialPlayerBalance + withdrawAmount);
-    }
     
     function testMultipleRounds() public {
         // Play multiple rounds with increasing nonce
@@ -201,11 +158,6 @@ contract PlinkoGameTest is Test {
         plinkoGame.setBetLimits(0.01 ether, 2 ether);
         assertEq(plinkoGame.minBet(), 0.01 ether);
         assertEq(plinkoGame.maxBet(), 2 ether);
-        
-        // Test setHouseEdge
-        vm.prank(owner);
-        plinkoGame.setHouseEdge(300); // 3%
-        assertEq(plinkoGame.houseEdge(), 300);
     }
     
     function testNonOwnerCannotCallOwnerFunctions() public {
@@ -216,10 +168,6 @@ contract PlinkoGameTest is Test {
         vm.prank(player1);
         vm.expectRevert("Not owner");
         plinkoGame.setBetLimits(0.01 ether, 2 ether);
-        
-        vm.prank(player1);
-        vm.expectRevert("Not owner");
-        plinkoGame.setHouseEdge(300);
     }
     
     function testDeposit() public {
@@ -250,23 +198,27 @@ contract PlinkoGameTest is Test {
         uint256 nonce = 0;
         
         // Calculate expected payout to ensure contract has enough balance
-        uint256 expectedGrossPayout = (betAmount * multiplier) / 100;
-        uint256 expectedHouseEdge = (expectedGrossPayout * 200) / 10000;
-        uint256 expectedNetPayout = expectedGrossPayout - expectedHouseEdge;
+        uint256 expectedPayout = (betAmount * multiplier) / 100;
         
         // Skip if payout would exceed contract balance
-        if (expectedNetPayout > address(plinkoGame).balance) {
+        if (expectedPayout > address(plinkoGame).balance) {
             return;
         }
         
         bytes memory signature = _createSignature(player1, betAmount, randomSeed, multiplier, nonce);
+        
+        // Record initial balance
+        uint256 initialBalance = player1.balance;
         
         vm.prank(player1);
         plinkoGame.playRound{value: betAmount}(randomSeed, multiplier, nonce, signature);
         
         // Verify state changes
         assertEq(plinkoGame.getPlayerNonce(player1), 1);
-        assertTrue(plinkoGame.getPlayerBalance(player1) > 0);
+        
+        // Verify instant payout
+        uint256 expectedFinalBalance = initialBalance - betAmount + expectedPayout;
+        assertEq(player1.balance, expectedFinalBalance);
     }
     
     // Helper function to create valid signatures
