@@ -189,7 +189,6 @@ contract PlinkoGame {
     error InvalidSignature();
     error InvalidBetAmount();
     error InvalidNonce();
-    error InvalidMultiplier();
     error InsufficientContractBalance();
     error TransferFailed();
 
