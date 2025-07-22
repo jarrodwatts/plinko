@@ -2,6 +2,7 @@ import { AbstractClient } from "@abstract-foundation/agw-client";
 import { SessionConfig, getSessionHash } from "@abstract-foundation/agw-client/sessions";
 import type { Address } from "viem";
 import { getSessionConfig, hasValidSession } from "./session-storage";
+import { validateSession } from "./validate-session";
 
 /**
  * Retrieves and validates a stored session for Privy server wallet setup
@@ -36,7 +37,7 @@ export const getStoredSession = async (
     const sessionHash = getSessionHash(sessionConfig);
 
     // Check if the session is still valid on the Abstract Global Wallet
-    const isValid = await abstractClient.getSessionStatus(sessionHash);
+    const isValid = await validateSession(abstractClient, address, sessionHash);
 
     if (!isValid) {
       console.log("Session is no longer valid on-chain, clearing local storage");

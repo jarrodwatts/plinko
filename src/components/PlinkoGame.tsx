@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Matter from 'matter-js';
+import { useAccount } from 'wagmi';
+import { useAuthSession } from '@/hooks/use-auth-session';
+import { useAbstractSession } from '@/hooks/use-abstract-session';
+import SignInModal from '@/components/auth/SignInModal';
+import { Button } from '@/components/ui/button';
+import { UserProfileStep } from '@/components/auth/steps/UserProfileStep';
 
 /**
  * A fully responsive Plinko game built with Matter.js physics engine.
@@ -16,6 +22,14 @@ const PlinkoGame = () => {
   const [score, setScore] = useState(0);
   const [isDropping, setIsDropping] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 800, height: 620 });
+  
+  // Authentication state
+  const { isConnected } = useAccount();
+  const { data: authSession } = useAuthSession();
+  const { data: session } = useAbstractSession();
+  
+  // Check if user is fully authenticated
+  const isFullyAuthenticated = isConnected && authSession?.isAuthenticated && session;
 
   /**
    * Calculates optimal canvas dimensions based on device type and screen size.
@@ -245,6 +259,12 @@ const PlinkoGame = () => {
   const dropBall = async () => {
     if (!engineRef.current || isDropping) return;
     
+    // Require authentication to drop balls
+    if (!isFullyAuthenticated) {
+      console.log('Authentication required to drop balls');
+      return;
+    }
+    
     setIsDropping(true);
     
     try {
@@ -362,11 +382,40 @@ const PlinkoGame = () => {
   return (
     <div className={`flex flex-col items-center justify-start min-h-screen ${isMobile ? 'p-1' : 'p-2'}`}
       style={{ backgroundColor: '#1a202c' }}>
+      {/* Header with authentication status */}
       <div className={`${isMobile ? 'mb-1' : 'mb-2'} text-center`}>
-        <h1 className={`${isMobile ? 'text-2xl' : 'text-4xl'} font-bold text-white mb-2`}>Plinko Game</h1>
-        <p className={`text-gray-300 ${isMobile ? 'text-sm mb-1' : 'mb-2'}`}>
-          {isMobile ? 'Tap to drop a ball' : 'Press SPACEBAR to drop a ball'}
-        </p>
+        <div className="flex items-center justify-between w-full max-w-4xl mx-auto mb-4">
+          <h1 className={`${isMobile ? 'text-2xl' : 'text-4xl'} font-bold text-white`}>Plinko Game</h1>
+          <div className="flex items-center gap-3">
+            {!isFullyAuthenticated && (
+              <SignInModal>
+                <Button variant="outline" className="border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white">
+                  Connect Wallet
+                </Button>
+              </SignInModal>
+            )}
+          </div>
+        </div>
+        
+        {/* User profile below header when connected */}
+        {isFullyAuthenticated && (
+          <div className="mb-4 flex justify-center">
+            <div className="w-80">
+              <UserProfileStep />
+            </div>
+          </div>
+        )}
+        
+        {isFullyAuthenticated ? (
+          <p className={`text-gray-300 ${isMobile ? 'text-sm mb-1' : 'mb-2'}`}>
+            {isMobile ? 'Tap to drop a ball' : 'Press SPACEBAR to drop a ball'}
+          </p>
+        ) : (
+          <p className={`text-orange-300 ${isMobile ? 'text-sm mb-1' : 'mb-2'}`}>
+            Connect your wallet to start playing!
+          </p>
+        )}
+        
         <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-semibold text-yellow-400`}>
           Score: {score.toFixed(1)}
         </div>
@@ -420,17 +469,31 @@ const PlinkoGame = () => {
       </div>
 
       <div className={`${isMobile ? 'mt-1' : 'mt-2'} text-center`}>
-        <button
-          onClick={dropBall}
-          disabled={isDropping}
-          className={`${isMobile ? 'px-6 py-3 text-sm' : 'px-8 py-4 text-base'} bg-green-600 hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none`}
-          style={{
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            letterSpacing: '0.025em'
-          }}
-        >
-          {isDropping ? 'DROPPING...' : 'DROP BALL'}
-        </button>
+        {isFullyAuthenticated ? (
+          <button
+            onClick={dropBall}
+            disabled={isDropping}
+            className={`${isMobile ? 'px-6 py-3 text-sm' : 'px-8 py-4 text-base'} bg-green-600 hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none`}
+            style={{
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              letterSpacing: '0.025em'
+            }}
+          >
+            {isDropping ? 'DROPPING...' : 'DROP BALL'}
+          </button>
+        ) : (
+          <SignInModal>
+            <button
+              className={`${isMobile ? 'px-6 py-3 text-sm' : 'px-8 py-4 text-base'} bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105`}
+              style={{
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+                letterSpacing: '0.025em'
+              }}
+            >
+              CONNECT TO PLAY
+            </button>
+          </SignInModal>
+        )}
       </div>
     </div>
   );

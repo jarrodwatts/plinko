@@ -3,4 +3,5 @@ export const QUERY_KEYS = {
     session: "session",
     profile: "profile",
     ethPrice: "ethPrice",
+    authSession: "authSession",
 };

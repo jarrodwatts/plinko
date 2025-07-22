@@ -14,9 +14,12 @@ export interface AuthSessionData {
 // Iron session options for SIWE authentication
 const authSessionOptions = {
   cookieName: "plinko_auth_session",
-  password: process.env.IRON_SESSION_PASSWORD || "complex_password_at_least_32_characters_long",
+  password: process.env.IRON_SESSION_PASSWORD!,
   cookieOptions: {
     secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    sameSite: "lax" as const,
+    maxAge: 60 * 60 * 24 * 7, // 7 days
   },
 };
 

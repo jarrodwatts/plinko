@@ -10,6 +10,9 @@ const authSessionOptions = {
   password: process.env.IRON_SESSION_PASSWORD || "complex_password_at_least_32_characters_long",
   cookieOptions: {
     secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    sameSite: "lax" as const,
+    maxAge: 60 * 60 * 24 * 7, // 7 days
   },
 };
 
@@ -34,7 +37,7 @@ export async function GET() {
 
     if (
       authSession.siweMessage.expirationTime &&
-      parseInt(authSession.siweMessage.expirationTime) < Date.now()
+      new Date(authSession.siweMessage.expirationTime).getTime() < Date.now()
     ) {
       return NextResponse.json(
         { ok: false, message: "SIWE session expired." },
