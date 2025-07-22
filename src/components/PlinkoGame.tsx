@@ -5,7 +5,6 @@ import Matter from 'matter-js';
 import { useAccount } from 'wagmi';
 import { useAuthSession } from '@/hooks/use-auth-session';
 import { useAbstractSession } from '@/hooks/use-abstract-session';
-import SignInModal from '@/components/auth/SignInModal';
 
 /**
  * A fully responsive Plinko game built with Matter.js physics engine.
