@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
 import { useAccount } from 'wagmi';
 import { useAuthSession } from '@/hooks/use-auth-session';
 import { useAbstractSession } from '@/hooks/use-abstract-session';
 import SignInModal from '@/components/auth/SignInModal';
-import { Button } from '@/components/ui/button';
-import { UserProfileStep } from '@/components/auth/steps/UserProfileStep';
 
 /**
  * A fully responsive Plinko game built with Matter.js physics engine.
@@ -32,7 +30,6 @@ const PlinkoGame = () => {
 
   /**
    * Calculates optimal canvas dimensions based on device type and screen size.
-   * Maintains 1:1 aspect ratio for compact game layout.
    */
   const getCanvasDimensions = () => {
     // Guard against SSR where window is undefined
@@ -62,7 +59,7 @@ const PlinkoGame = () => {
   // Fixed canvas size for stable physics world - optimized height for content
   const CANVAS_WIDTH = 800;
   const CANVAS_HEIGHT = 620;
-  const PEG_RADIUS = 6; // Smaller pegs for tighter Christmas tree formation
+  const PEG_RADIUS = 4; // Smaller pegs for tighter Christmas tree formation
   const BALL_RADIUS = 8; // Smaller ball for tighter peg spacing
   const BUCKET_WIDTH = (CANVAS_WIDTH / 17) * 0.9; // 17 containers with 10% gap
   const BUCKET_HEIGHT = 30; // Half height for better proportions
@@ -201,9 +198,12 @@ const PlinkoGame = () => {
     }
 
     // Prize buckets with exponential risk/reward structure
+    // Probability distribution (symmetric from center):
+    // 110x: 0.0015% | 42x: 0.0244% | 10x: 0.1831% | 5x: 0.8545% | 3x: 2.7771%
+    // 1.5x: 6.6650% | 1x: 12.2192% | 0.5x: 17.5461% | 0.3x: 19.6381% (center)
     const buckets: Matter.Body[] = [];
     const bucketCount = 17;
-    const multipliers = [2500, 200, 24, 10, 2.4, 1.2, 0.6, 0.3, 0.1, 0.3, 0.6, 1.2, 2.4, 10, 24, 200, 2500]; // Symmetric expansion from center 0.1x
+    const multipliers = [110, 42, 10, 5, 3, 1.5, 1, 0.5, 0.3, 0.5, 1, 1.5, 3, 5, 10, 42, 110]; // Symmetric from center 0.3x
     const bucketSpacing = CANVAS_WIDTH / bucketCount;
 
     for (let i = 0; i < bucketCount; i++) {
@@ -252,13 +252,13 @@ const PlinkoGame = () => {
       Matter.Engine.clear(engine);
       render.canvas.remove();
     };
-  }, []); // Only create physics world once
+  }, [BUCKET_WIDTH]); // Only create physics world once
 
   /**
    * Creates and drops a new ball with predetermined outcome from server.
    * Ball physics are subtly guided to reach the server-determined bucket.
    */
-  const dropBall = async () => {
+  const dropBall = useCallback(async () => {
     if (!engineRef.current || isDropping) return;
 
     // Require authentication to drop balls
@@ -364,7 +364,7 @@ const PlinkoGame = () => {
     } finally {
       setIsDropping(false);
     }
-  };
+  }, [engineRef, isDropping, isFullyAuthenticated, CANVAS_WIDTH]);
 
   // Keyboard controls: spacebar to drop balls
   useEffect(() => {
@@ -377,7 +377,7 @@ const PlinkoGame = () => {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
+  }, [dropBall]);
 
   const isMobile = displayWidth < 500;
 
@@ -404,12 +404,10 @@ const PlinkoGame = () => {
 
             {/* Enhanced Bucket labels */}
             <div className="absolute inset-0 pointer-events-none">
-              {[2500, 200, 24, 10, 2.4, 1.2, 0.6, 0.3, 0.1, 0.3, 0.6, 1.2, 2.4, 10, 24, 200, 2500].map((multiplier, index) => {
+              {[110, 42, 10, 5, 3, 1.5, 1, 0.5, 0.3, 0.5, 1, 1.5, 3, 5, 10, 42, 110].map((multiplier, index) => {
                 const bucketSpacing = CANVAS_WIDTH / 17;
                 const x = (bucketSpacing * index + bucketSpacing / 2) * scale;
                 const y = 596 * scale;
-                const isHighValue = multiplier >= 100;
-                const isMediumValue = multiplier >= 10 && multiplier < 100;
 
                 return (
                   <div
@@ -423,7 +421,7 @@ const PlinkoGame = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: isMobile ? (isHighValue ? '9px' : '10px') : (isHighValue ? '11px' : '12px'),
+                      fontSize: isMobile ? '10px' : '12px',
                       fontFamily: 'system-ui, -apple-system, sans-serif',
                       fontWeight: '700',
                       letterSpacing: '0.025em',

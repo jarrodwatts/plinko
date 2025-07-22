@@ -4,7 +4,7 @@ import { createViemAccount } from "@privy-io/server-auth/viem";
 import { parseAbi, type Address } from "viem";
 import { abstractTestnet } from "viem/chains";
 import { createSessionClient } from "@abstract-foundation/agw-client/sessions";
-import { SessionData } from "../../siwe/nonce/route";
+import { AuthSessionData } from "../../siwe/nonce/route";
 import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
 
@@ -38,15 +38,15 @@ export async function POST(
     // Session here is not related to our session keys.
     // This is just related to auth / sign in with Ethereum.
     // We implement SIWE auth to get the AGW on the server side.
-    const session = await getIronSession<SessionData>(
+    const session = await getIronSession<AuthSessionData>(
       await cookies(),
       ironOptions
     );
-    
+
     if (!session.isAuthenticated) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    
+
     if (!session.address) {
       return NextResponse.json({ error: "No address found" }, { status: 401 });
     }
@@ -61,10 +61,11 @@ export async function POST(
     );
 
     // Create a viem account instance for the server wallet
+    // Type assertion to work around package version conflicts
     const account = await createViemAccount({
       walletId: process.env.PRIVY_SERVER_WALLET_ID!,
       address: process.env.PRIVY_SERVER_WALLET_ADDRESS as Address,
-      privy,
+      privy: privy as unknown as Parameters<typeof createViemAccount>[0]['privy'],
     });
 
     // Initialize the AGW Session client to send transactions from the server wallet using the session key

@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { useAccount, useBalance } from "wagmi";
 import { useLoginWithAbstract } from "@abstract-foundation/agw-react";
-import Link from "next/link";
 import {
     DropdownMenu,
     DropdownMenuContent,

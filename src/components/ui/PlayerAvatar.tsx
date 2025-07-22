@@ -39,7 +39,7 @@ export function PlayerAvatar({
     profile?.user?.overrideProfilePictureUrl ||
     "https://abstract-assets.abs.xyz/avatars/1-1-1.png";
 
-  const displayName = getDisplayName(profile?.user?.name, address);
+  const displayName = getDisplayName(profile?.user?.name || "", address);
 
   // Use tier-based color if shineColor not provided
   const tierColor = profile?.user?.tier ? getTierColor(profile.user.tier) : getTierColor(2);

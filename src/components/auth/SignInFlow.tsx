@@ -36,7 +36,7 @@ export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
   const { isConnected, address } = useAccount();
   const { data: authSession, isLoading: isAuthLoading } = useAuthSession();
   const { data: session, isLoading: isSessionLoading } = useAbstractSession();
-  const { data: profile, isLoading: isProfileLoading } = useAbstractProfile();
+  const { isLoading: isProfileLoading } = useAbstractProfile();
 
   // Auto-advance through steps based on current state
   useEffect(() => {
