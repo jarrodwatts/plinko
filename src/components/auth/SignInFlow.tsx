@@ -5,7 +5,6 @@ import { useAccount } from "wagmi";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useAbstractSession } from "@/hooks/use-abstract-session";
 import { useAbstractProfile } from "@/hooks/use-abstract-profile";
-import { PlayerAvatar } from "@/components/ui/PlayerAvatar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PRIMARY_COLOR } from "@/lib/colors";
 import { WalletConnectionStep } from "./steps/WalletConnectionStep";
@@ -34,7 +33,7 @@ enum SignInStep {
 export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
   const [currentStep, setCurrentStep] = useState<SignInStep>(SignInStep.WALLET_CONNECTION);
 
-  const { isConnected, address } = useAccount();
+  const { isConnected } = useAccount();
   const { data: authSession, isLoading: isAuthLoading } = useAuthSession();
   const { data: session, isLoading: isSessionLoading } = useAbstractSession();
   const { isLoading: isProfileLoading } = useAbstractProfile();

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
 import { useAccount } from 'wagmi';
-import { parseEther } from 'viem';
 import { useAuthSession } from '@/hooks/use-auth-session';
 import { useAbstractSession } from '@/hooks/use-abstract-session';
 import { usePlinkoPlayRound } from '@/hooks/use-plinko-play-round';
@@ -35,7 +34,7 @@ const PlinkoGame = () => {
   });
 
   // Authentication state
-  const { isConnected, address } = useAccount();
+  const { isConnected } = useAccount();
   const { data: authSession } = useAuthSession();
   const { data: session } = useAbstractSession();
 

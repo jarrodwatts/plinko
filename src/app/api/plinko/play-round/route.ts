@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseEther, keccak256, encodePacked, parseAbi, type Address } from 'viem';
+import { parseEther, keccak256, encodePacked, type Address } from 'viem';
 import { PrivyClient } from '@privy-io/server-auth';
 import { createViemAccount } from '@privy-io/server-auth/viem';
 import { createSessionClient } from '@abstract-foundation/agw-client/sessions';

@@ -1,10 +1,8 @@
 "use client";
 
 import { chain } from "@/config/chain";
+import { queryClient } from "@/config/query-client";
 import { AbstractWalletProvider } from "@abstract-foundation/agw-react";
-import { QueryClient } from "@tanstack/react-query";
-
-export const queryClient = new QueryClient();
 
 export default function AbstractWalletWrapper({
   children,
