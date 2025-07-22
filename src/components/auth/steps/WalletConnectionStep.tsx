@@ -44,7 +44,10 @@ export const WalletConnectionStep: React.FC<WalletConnectionStepProps> = ({
         </div>
         <button
           onClick={() => login()}
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md border border-green-500"
+          className="w-full text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+          style={{ backgroundColor: '#00ca51', borderColor: '#00ca51', cursor: 'pointer' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00b847'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#00ca51'}
         >
           Try Again
         </button>
@@ -52,7 +55,8 @@ export const WalletConnectionStep: React.FC<WalletConnectionStepProps> = ({
           href="https://support.google.com/chrome/answer/95472"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-blue-400 hover:underline block"
+          className="text-xs hover:underline block"
+          style={{ color: '#00ca51' }}
         >
           Having trouble? Check if pop-ups are blocked
         </a>
@@ -70,7 +74,10 @@ export const WalletConnectionStep: React.FC<WalletConnectionStepProps> = ({
       </div>
       <button
         onClick={() => login()}
-        className="w-full bg-green-600 hover:bg-green-700 text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md border border-green-500"
+        className="w-full text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+        style={{ backgroundColor: '#00ca51', borderColor: '#00ca51', cursor: 'pointer' }}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00b847'}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#00ca51'}
       >
         Connect Abstract Wallet
       </button>

@@ -63,7 +63,10 @@ export const SessionKeyStep: React.FC<SessionKeyStepProps> = ({
         </div>
         <button
           onClick={() => refetch()}
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md border border-green-500"
+          className="w-full text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+          style={{ backgroundColor: '#00ca51', borderColor: '#00ca51', cursor: 'pointer' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00b847'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#00ca51'}
         >
           Try Again
         </button>
@@ -84,7 +87,10 @@ export const SessionKeyStep: React.FC<SessionKeyStepProps> = ({
         </div>
         <button
           onClick={() => createSession()}
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md border border-green-500"
+          className="w-full text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+          style={{ backgroundColor: '#00ca51', borderColor: '#00ca51', cursor: 'pointer' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00b847'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#00ca51'}
         >
           Try Again
         </button>
@@ -102,7 +108,10 @@ export const SessionKeyStep: React.FC<SessionKeyStepProps> = ({
       </div>
       <button
         onClick={() => createSession()}
-        className="w-full bg-green-600 hover:bg-green-700 text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md border border-green-500"
+        className="w-full text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+        style={{ backgroundColor: '#00ca51', borderColor: '#00ca51', cursor: 'pointer' }}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#00b847'}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#00ca51'}
       >
         Create Session Key
       </button>

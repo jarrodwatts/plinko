@@ -51,7 +51,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
           <DialogHeader className="sr-only">
             <DialogTitle>Connect Wallet</DialogTitle>
           </DialogHeader>
-          <div className="p-2">
+          <div className="p-2 relative">
             <SignInFlow onComplete={handleComplete} />
           </div>
         </DialogContent>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Inter as FontSans } from "next/font/google";
 import NextAbstractWalletProvider from "@/components/NextAbstractWalletProvider";
+import Header from "@/components/Header";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -62,11 +63,14 @@ export default function RootLayout({
       <NextAbstractWalletProvider>
         <body
           className={cn(
-            "min-h-screen bg-background font-sans antialiased",
+            "min-h-screen font-sans antialiased",
             fontSans.variable,
             fontHeading.variable
           )}>
-          {children}
+          <Header />
+          <main className="pt-[70px] sm:pt-[70px]">
+            {children}
+          </main>
         </body>
       </NextAbstractWalletProvider>
     </html>

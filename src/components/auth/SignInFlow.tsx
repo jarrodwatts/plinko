@@ -5,6 +5,8 @@ import { useAccount } from "wagmi";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useAbstractSession } from "@/hooks/use-abstract-session";
 import { useAbstractProfile } from "@/hooks/use-abstract-profile";
+import { PlayerAvatar } from "@/components/ui/PlayerAvatar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { WalletConnectionStep } from "./steps/WalletConnectionStep";
 import { SiweAuthStep } from "./steps/SiweAuthStep";
 import { SessionKeyStep } from "./steps/SessionKeyStep";
@@ -87,7 +89,7 @@ export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
             <div
               className={`w-2 h-2 rounded-full transition-all duration-300 ${
                 index <= currentStepIndex
-                  ? 'bg-green-500 shadow-sm shadow-green-500/50'
+                  ? 'bg-[#00ca51] shadow-sm shadow-[#00ca51]/50'
                   : 'bg-neutral-600'
               }`}
             />
@@ -95,7 +97,7 @@ export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
               <div
                 className={`w-6 h-px mx-1.5 transition-all duration-300 opacity-40 ${
                   index < currentStepIndex
-                    ? 'bg-green-500'
+                    ? 'bg-[#00ca51]'
                     : 'bg-neutral-600'
                 }`}
               />
@@ -144,8 +146,8 @@ export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
       case SignInStep.COMPLETED:
         return (
           <div className="text-center space-y-4">
-            <h3 className="text-xl font-semibold text-green-400">
-              🎉 You're all set!
+            <h3 className="text-xl font-semibold text-[#00ca51]">
+              You're all set!
             </h3>
             <p className="text-neutral-400 text-sm">
               Welcome to <strong>Plinko</strong>! You can now drop balls and play without signing every transaction.
@@ -158,12 +160,28 @@ export const SignInFlow: React.FC<SignInFlowProps> = ({ onComplete }) => {
     }
   };
 
+  const { address } = useAccount();
+
   return (
-    <div className="flex flex-col transition-all duration-500 ease-in-out">
-      <ProgressDots />
-      <div className="space-y-4 transition-all duration-500 ease-in-out">
-        {renderCurrentStep()}
+    <TooltipProvider>
+      <div className="flex flex-col transition-all duration-500 ease-in-out">
+        {/* User avatar in top left when connected */}
+        {isConnected && address && (
+          <div className="absolute top-4 left-4">
+            <PlayerAvatar
+              address={address}
+              fallback={address.slice(2, 4).toUpperCase()}
+              size="sm"
+              showTooltip={true}
+            />
+          </div>
+        )}
+        
+        <ProgressDots />
+        <div className="space-y-4 transition-all duration-500 ease-in-out">
+          {renderCurrentStep()}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };

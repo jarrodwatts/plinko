@@ -45,40 +45,6 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -116,7 +82,77 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Header glow effects */
+.logo-glow {
+  transition: all 0.3s ease;
+}
+
+.logo-glow:hover {
+  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.5));
+  transform: scale(1.02);
+}
+
+.nav-link-glow {
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.nav-link-glow:hover {
+  transform: translateY(-1px);
+}
+
+.nav-link-glow:hover span {
+  color: rgba(16, 185, 129, 0.9);
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+}
+
+.provably-fair-glow {
+  transition: all 0.3s ease;
+}
+
+.provably-fair-glow:hover {
+  transform: translateY(-1px);
+  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.4));
+}
+
+.animate-green-pulse-glow {
+  animation: green-pulse-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes green-pulse-glow {
+  from {
+    filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.3));
+  }
+
+  to {
+    filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.6));
+  }
+}
+
+.glow-green {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.glow-green:hover {
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
+}
+
+/* Custom spin animation with smooth deceleration */
+@keyframes smooth-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.icon-spin {
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.group:hover .icon-spin {
+  animation: smooth-spin 1s linear infinite;
 }
