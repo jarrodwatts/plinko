@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import Matter from 'matter-js';
 import { useAccount } from 'wagmi';
 import { useAuthSession } from '@/hooks/use-auth-session';
@@ -106,7 +106,7 @@ const PlinkoGame = () => {
   }, []);
 
   // Production velocity mapping - one optimal velocity per bucket
-  const BUCKET_TO_VELOCITY: Record<number, number> = {
+  const BUCKET_TO_VELOCITY = useMemo((): Record<number, number> => ({
     0: 1,       // 110x
     1: 1.25,    // 42x  
     2: -4.25,   // 10x
@@ -124,7 +124,7 @@ const PlinkoGame = () => {
     14: 1.45,   // 10x
     15: 0.8,    // 42x
     16: 1.4     // 110x
-  };
+  }), []);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -154,10 +154,6 @@ const PlinkoGame = () => {
         }
 
         if (ball && bucket) {
-          // Get bucket index from bucket position
-          const bucketIndex = Math.floor(ball.position.x / (CANVAS_WIDTH / 17));
-          const clampedBucketIndex = Math.max(0, Math.min(16, bucketIndex));
-
           // Use server-validated outcome instead of bucket multiplier
           const ballOutcome = ball.plugin?.ballOutcome;
           if (ballOutcome) {
@@ -326,12 +322,12 @@ const PlinkoGame = () => {
     // Fixed starting position
     const startX = CANVAS_WIDTH / 2; // Always center
     const startY = 20; // Always top
-    
+
     // Use production mapping for server outcomes
     const targetVelocity = BUCKET_TO_VELOCITY[outcome.targetBucket];
     const velocityX = targetVelocity !== undefined ? targetVelocity : 0; // Fallback to center
     const velocityY = 2; // Fixed downward velocity
-    
+
     // Create ball at fixed position with collision filtering
     const ball = Matter.Bodies.circle(
       startX,
@@ -361,9 +357,9 @@ const PlinkoGame = () => {
     Matter.World.add(engineRef.current.world, ball);
 
     // Set calculated velocity for precise placement
-    Matter.Body.setVelocity(ball, { 
-      x: velocityX, 
-      y: velocityY 
+    Matter.Body.setVelocity(ball, {
+      x: velocityX,
+      y: velocityY
     });
 
     // Remove ball after 15 seconds to prevent accumulation
@@ -405,7 +401,7 @@ const PlinkoGame = () => {
     } finally {
       setIsDropping(false);
     }
-  }, [engineRef, isDropping, isFullyAuthenticated, submitTransactionMutation.mutateAsync, submitTransactionMutation.isPending]);
+  }, [engineRef, isDropping, isFullyAuthenticated, submitTransactionMutation]);
 
   // Keyboard controls: spacebar to drop balls
   useEffect(() => {
