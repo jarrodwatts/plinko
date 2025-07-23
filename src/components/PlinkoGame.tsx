@@ -41,6 +41,13 @@ const PlinkoGame = () => {
   // Check if user is fully authenticated
   const isFullyAuthenticated = isConnected && authSession?.isAuthenticated && session;
 
+  console.log({
+    isConnected,
+    isAuthenticated: authSession?.isAuthenticated,
+    session,
+    isFullyAuthenticated
+  })
+
   /**
    * Calculates optimal canvas dimensions based on device type and screen size.
    */
@@ -98,6 +105,26 @@ const PlinkoGame = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Production velocity mapping - one optimal velocity per bucket
+  const BUCKET_TO_VELOCITY: Record<number, number> = {
+    0: 1,       // 110x
+    1: 1.25,    // 42x  
+    2: -4.25,   // 10x
+    3: -0.45,   // 5x (using closer velocity)
+    4: 0.85,    // 3x
+    5: 0.7,     // 1.5x
+    6: -1.1,    // 1x
+    7: -1.2,    // 0.5x
+    8: -1.05,   // 0.3x (center)
+    9: 1.2,     // 0.5x
+    10: 0.6,    // 1x
+    11: 0.9,    // 1.5x
+    12: 2.1,    // 3x
+    13: -1.15,  // 5x
+    14: 1.45,   // 10x
+    15: 0.8,    // 42x
+    16: 1.4     // 110x
+  };
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -127,14 +154,17 @@ const PlinkoGame = () => {
         }
 
         if (ball && bucket) {
+          // Get bucket index from bucket position
+          const bucketIndex = Math.floor(ball.position.x / (CANVAS_WIDTH / 17));
+          const clampedBucketIndex = Math.max(0, Math.min(16, bucketIndex));
+
           // Use server-validated outcome instead of bucket multiplier
           const ballOutcome = ball.plugin?.ballOutcome;
           if (ballOutcome) {
             // Log the predetermined server outcome
             console.log(`Ball scored: ${ballOutcome.multiplier}x`);
 
-            // Log for verification (in production, this would validate against server)
-            console.log(`Ball ${ballOutcome.ballId} scored: ${ballOutcome.multiplier}x (Target bucket: ${ballOutcome.targetBucket})`);
+            console.log(`Ball ${ballOutcome.nonce} scored: ${ballOutcome.multiplier}x (Target bucket: ${ballOutcome.targetBucket})`);
           } else {
             // Fallback to bucket multiplier for any balls without outcome data
             const multiplier = parseFloat(bucket.label.split('-')[1]);
@@ -170,15 +200,27 @@ const PlinkoGame = () => {
     const walls = [
       Matter.Bodies.rectangle(-25, CANVAS_HEIGHT / 2, 50, CANVAS_HEIGHT, {
         isStatic: true,
-        render: { fillStyle: 'transparent' }
+        render: { fillStyle: 'transparent' },
+        collisionFilter: {
+          category: 0x0001, // Wall category - balls can collide with this
+          mask: 0xFFFF      // Walls can collide with everything
+        }
       }),
       Matter.Bodies.rectangle(CANVAS_WIDTH + 25, CANVAS_HEIGHT / 2, 50, CANVAS_HEIGHT, {
         isStatic: true,
-        render: { fillStyle: 'transparent' }
+        render: { fillStyle: 'transparent' },
+        collisionFilter: {
+          category: 0x0001, // Wall category - balls can collide with this
+          mask: 0xFFFF      // Walls can collide with everything
+        }
       }),
       Matter.Bodies.rectangle(CANVAS_WIDTH / 2, CANVAS_HEIGHT + 25, CANVAS_WIDTH, 50, {
         isStatic: true,
-        render: { fillStyle: 'transparent' }
+        render: { fillStyle: 'transparent' },
+        collisionFilter: {
+          category: 0x0001, // Wall category - balls can collide with this
+          mask: 0xFFFF      // Walls can collide with everything
+        }
       })
     ];
 
@@ -204,6 +246,10 @@ const PlinkoGame = () => {
             fillStyle: '#e2e8f0', // Refined light gray
             strokeStyle: '#cbd5e1', // Subtle border
             lineWidth: 1
+          },
+          collisionFilter: {
+            category: 0x0001, // Peg category - balls can collide with this
+            mask: 0xFFFF      // Pegs can collide with everything
           }
         });
         pegs.push(peg);
@@ -245,6 +291,10 @@ const PlinkoGame = () => {
         chamfer: {
           radius: 3
         },
+        collisionFilter: {
+          category: 0x0001, // Bucket category - balls can collide with this
+          mask: 0xFFFF      // Buckets can collide with everything
+        },
         label: `bucket-${multipliers[i]}` // Used for collision detection
       });
       buckets.push(bucket);
@@ -268,15 +318,24 @@ const PlinkoGame = () => {
   }, [BUCKET_WIDTH]); // Only create physics world once
 
   /**
-   * Creates a ball with physics and guided outcome
+   * Creates a ball with server-determined outcome using velocity mapping
    */
   const createBallWithOutcome = useCallback((outcome: { randomSeed: number; targetBucket: number; multiplier: number; nonce: number }) => {
     if (!engineRef.current) return;
 
-    // Create ball with normal random starting position
+    // Fixed starting position
+    const startX = CANVAS_WIDTH / 2; // Always center
+    const startY = 20; // Always top
+    
+    // Use production mapping for server outcomes
+    const targetVelocity = BUCKET_TO_VELOCITY[outcome.targetBucket];
+    const velocityX = targetVelocity !== undefined ? targetVelocity : 0; // Fallback to center
+    const velocityY = 2; // Fixed downward velocity
+    
+    // Create ball at fixed position with collision filtering
     const ball = Matter.Bodies.circle(
-      CANVAS_WIDTH / 2 + (Math.random() - 0.5) * (CANVAS_WIDTH * 0.05), // Random starting position
-      20, // Start near top
+      startX,
+      startY,
       BALL_RADIUS,
       {
         restitution: 0.6,
@@ -284,11 +343,14 @@ const PlinkoGame = () => {
         frictionAir: 0.01,
         density: 0.001,
         render: {
-          fillStyle: PRIMARY_COLOR, // Modern blue
-          strokeStyle: PRIMARY_DARK, // Darker blue border
+          fillStyle: PRIMARY_COLOR,
+          strokeStyle: PRIMARY_DARK,
           lineWidth: 2
         },
-        // Store outcome data for final positioning
+        collisionFilter: {
+          category: 0x0002, // Ball category
+          mask: 0x0001      // Only collide with pegs/buckets (category 0x0001), not other balls
+        },
         plugin: {
           ballOutcome: outcome
         }
@@ -298,41 +360,13 @@ const PlinkoGame = () => {
     ballsRef.current.push(ball);
     Matter.World.add(engineRef.current.world, ball);
 
-    // Give ball normal random initial momentum
-    Matter.Body.setVelocity(ball, { x: (Math.random() - 0.5) * 2, y: 2 });
+    // Set calculated velocity for precise placement
+    Matter.Body.setVelocity(ball, { 
+      x: velocityX, 
+      y: velocityY 
+    });
 
-    // Monitor ball and teleport to correct bucket at the last moment
-    const monitorBall = () => {
-      if (!ballsRef.current.includes(ball) || !engineRef.current) return;
-
-      const ballPosition = ball.position;
-
-      // When ball reaches the bucket level, teleport it to the correct bucket
-      if (ballPosition.y >= 580) { // Just above bucket level
-        const targetBucketX = (CANVAS_WIDTH / 17) * (outcome.targetBucket + 0.5);
-
-        // Teleport ball to correct X position while maintaining Y position and velocity
-        Matter.Body.setPosition(ball, {
-          x: targetBucketX,
-          y: ballPosition.y
-        });
-
-        // Ensure ball has downward velocity to hit the bucket
-        Matter.Body.setVelocity(ball, { x: 0, y: Math.max(ball.velocity.y, 2) });
-
-        return; // Stop monitoring after teleport
-      }
-
-      // Continue monitoring
-      if (ballsRef.current.includes(ball)) {
-        requestAnimationFrame(monitorBall);
-      }
-    };
-
-    // Start monitoring immediately
-    monitorBall();
-
-    // Remove ball after 15 seconds
+    // Remove ball after 15 seconds to prevent accumulation
     setTimeout(() => {
       const index = ballsRef.current.indexOf(ball);
       if (index > -1) {
@@ -342,7 +376,7 @@ const PlinkoGame = () => {
         }
       }
     }, 15000);
-  }, [engineRef, CANVAS_WIDTH]);
+  }, [engineRef, CANVAS_WIDTH, BUCKET_TO_VELOCITY]);
 
   /**
    * Drops a ball by triggering server-controlled randomness and transaction
@@ -359,7 +393,7 @@ const PlinkoGame = () => {
     setIsDropping(true);
 
     try {
-      const betAmount = 0.01; // Default bet amount - can be made configurable
+      const betAmount = 0.001; // Default bet amount - can be made configurable
 
       // Single call to server: generates randomness, signs it, and submits transaction
       await submitTransactionMutation.mutateAsync({
