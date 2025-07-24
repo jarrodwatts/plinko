@@ -36,8 +36,6 @@ export const createAndStoreSession = async (
       signer: serverWalletAddress as Address,
     };
 
-    console.log("sessionConfig", sessionConfig);
-
     // Request user approval for the session
     const approvedSession = await abstractClient.createSession({
       session: sessionConfig,

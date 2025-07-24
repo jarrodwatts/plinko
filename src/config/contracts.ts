@@ -1,8 +1,8 @@
 import { IS_PRODUCTION } from "./environment";
 
 export const PLINKO_CONTRACT_ADDRESS: `0x${string}` = IS_PRODUCTION
-    ? "0x1be4858d192d99712A99DBB81C12cAEF173b5B04"
-    : "0x1be4858d192d99712A99DBB81C12cAEF173b5B04";
+    ? "0xeb71c509e4fa57Eb5ef81Bb5DdAb3C59Ee7Ecf09"
+    : "0xeb71c509e4fa57Eb5ef81Bb5DdAb3C59Ee7Ecf09";
 
 export const PLINKO_CONTRACT_ABI = [
     {
@@ -49,19 +49,24 @@ export const PLINKO_CONTRACT_ABI = [
     },
     {
         "type": "function",
-        "name": "getPlayerNonce",
+        "name": "isGameIdUsed",
         "inputs": [
             {
                 "name": "player",
                 "type": "address",
                 "internalType": "address"
+            },
+            {
+                "name": "gameId",
+                "type": "bytes32",
+                "internalType": "bytes32"
             }
         ],
         "outputs": [
             {
                 "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
+                "type": "bool",
+                "internalType": "bool"
             }
         ],
         "stateMutability": "view"
@@ -120,9 +125,9 @@ export const PLINKO_CONTRACT_ABI = [
                 "internalType": "uint256"
             },
             {
-                "name": "nonce",
-                "type": "uint256",
-                "internalType": "uint256"
+                "name": "gameId",
+                "type": "bytes32",
+                "internalType": "bytes32"
             },
             {
                 "name": "serverSignature",
@@ -132,25 +137,6 @@ export const PLINKO_CONTRACT_ABI = [
         ],
         "outputs": [],
         "stateMutability": "payable"
-    },
-    {
-        "type": "function",
-        "name": "playerNonces",
-        "inputs": [
-            {
-                "name": "",
-                "type": "address",
-                "internalType": "address"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
     },
     {
         "type": "function",
@@ -197,6 +183,30 @@ export const PLINKO_CONTRACT_ABI = [
         "stateMutability": "nonpayable"
     },
     {
+        "type": "function",
+        "name": "usedGameIds",
+        "inputs": [
+            {
+                "name": "",
+                "type": "address",
+                "internalType": "address"
+            },
+            {
+                "name": "",
+                "type": "bytes32",
+                "internalType": "bytes32"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool",
+                "internalType": "bool"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
         "type": "event",
         "name": "Deposit",
         "inputs": [
@@ -220,7 +230,7 @@ export const PLINKO_CONTRACT_ABI = [
         "name": "RoundPlayed",
         "inputs": [
             {
-                "name": "roundId",
+                "name": "gameId",
                 "type": "bytes32",
                 "indexed": true,
                 "internalType": "bytes32"
@@ -279,22 +289,17 @@ export const PLINKO_CONTRACT_ABI = [
     },
     {
         "type": "error",
+        "name": "GameAlreadyPlayed",
+        "inputs": []
+    },
+    {
+        "type": "error",
         "name": "InsufficientContractBalance",
         "inputs": []
     },
     {
         "type": "error",
         "name": "InvalidBetAmount",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "InvalidMultiplier",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "InvalidNonce",
         "inputs": []
     },
     {

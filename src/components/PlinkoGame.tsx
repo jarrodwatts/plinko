@@ -6,6 +6,7 @@ import { useAccount } from 'wagmi';
 import { useAuthSession } from '@/hooks/use-auth-session';
 import { useAbstractSession } from '@/hooks/use-abstract-session';
 import { usePlinkoPlayRound } from '@/hooks/use-plinko-play-round';
+import { useWalletNonce } from '@/hooks/use-wallet-nonce';
 import { PRIMARY_COLOR, PRIMARY_DARK } from '@/lib/colors';
 
 /**
@@ -18,18 +19,43 @@ const PlinkoGame = () => {
   const engineRef = useRef<Matter.Engine | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
   const ballsRef = useRef<Matter.Body[]>([]);
-  const [isDropping, setIsDropping] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 800, height: 620 });
 
-  // Plinko play round mutation
+  // Transaction status tracking
+  const [transactionStatus, setTransactionStatus] = useState<{
+    stage: 'idle' | 'outcome' | 'submitted' | 'confirmed';
+    hash?: string;
+    receipt?: {
+      blockNumber: bigint;
+      gasUsed: string;
+      status: string;
+    };
+    error?: string;
+  }>({ stage: 'idle' });
+
+  // Plinko play round mutation with streaming callbacks
   const submitTransactionMutation = usePlinkoPlayRound({
-    onSuccess: (data) => {
-      console.log('Ball drop transaction successful:', data);
-      // Create ball with the outcome from server
-      createBallWithOutcome(data);
+    onSuccess: (outcome) => {
+      console.log('Ball drop outcome received:', outcome);
+      // Create ball immediately with the outcome from server
+      createBallWithOutcome(outcome);
+      setTransactionStatus({ stage: 'outcome' });
+    },
+    onTransactionSubmitted: (hash) => {
+      console.log('Transaction submitted:', hash);
+      setTransactionStatus(prev => ({ ...prev, stage: 'submitted', hash }));
+    },
+    onTransactionConfirmed: (receipt) => {
+      console.log('Transaction confirmed:', receipt);
+      setTransactionStatus(prev => ({ ...prev, stage: 'confirmed', receipt }));
     },
     onError: (error) => {
       console.error('Ball drop transaction failed:', error);
+      setTransactionStatus({ stage: 'idle', error: error.message });
+    },
+    onNonceError: () => {
+      console.log('🔄 Nonce error detected, resetting wallet nonce...');
+      resetNonce();
     },
   });
 
@@ -38,15 +64,11 @@ const PlinkoGame = () => {
   const { data: authSession } = useAuthSession();
   const { data: session } = useAbstractSession();
 
-  // Check if user is fully authenticated
-  const isFullyAuthenticated = isConnected && authSession?.isAuthenticated && session;
+  // Wallet nonce management for rapid transactions
+  const { currentNonce, getNextNonce, resetNonce, isLoading: nonceLoading, error: nonceError } = useWalletNonce();
 
-  console.log({
-    isConnected,
-    isAuthenticated: authSession?.isAuthenticated,
-    session,
-    isFullyAuthenticated
-  })
+  // Check if user is fully authenticated and wallet nonce is ready
+  const isFullyAuthenticated = isConnected && authSession?.isAuthenticated && session && currentNonce !== null;
 
   /**
    * Calculates optimal canvas dimensions based on device type and screen size.
@@ -160,7 +182,7 @@ const PlinkoGame = () => {
             // Log the predetermined server outcome
             console.log(`Ball scored: ${ballOutcome.multiplier}x`);
 
-            console.log(`Ball ${ballOutcome.nonce} scored: ${ballOutcome.multiplier}x (Target bucket: ${ballOutcome.targetBucket})`);
+            console.log(`Ball ${ballOutcome.gameId} scored: ${ballOutcome.multiplier}x (Target bucket: ${ballOutcome.targetBucket})`);
           } else {
             // Fallback to bucket multiplier for any balls without outcome data
             const multiplier = parseFloat(bucket.label.split('-')[1]);
@@ -316,7 +338,7 @@ const PlinkoGame = () => {
   /**
    * Creates a ball with server-determined outcome using velocity mapping
    */
-  const createBallWithOutcome = useCallback((outcome: { randomSeed: number; targetBucket: number; multiplier: number; nonce: number }) => {
+  const createBallWithOutcome = useCallback((outcome: { randomSeed: number; targetBucket: number; multiplier: number; gameId: string }) => {
     if (!engineRef.current) return;
 
     // Fixed starting position
@@ -378,30 +400,40 @@ const PlinkoGame = () => {
    * Drops a ball by triggering server-controlled randomness and transaction
    */
   const dropBall = useCallback(async () => {
-    if (!engineRef.current || isDropping || submitTransactionMutation.isPending) return;
+    if (!engineRef.current) return;
 
-    // Require authentication to drop balls
+    // Require authentication and wallet nonce to drop balls
     if (!isFullyAuthenticated) {
-      console.log('Authentication required to drop balls');
+      console.log('Authentication or wallet nonce not ready');
       return;
     }
 
-    setIsDropping(true);
+    // Get next wallet nonce for this transaction
+    const walletNonce = getNextNonce();
+    if (walletNonce === null) {
+      console.error('Could not get next wallet nonce');
+      setTransactionStatus({ stage: 'idle', error: 'Wallet nonce not available' });
+      return;
+    }
 
     try {
       const betAmount = 0.001; // Default bet amount - can be made configurable
 
-      // Single call to server: generates randomness, signs it, and submits transaction
-      await submitTransactionMutation.mutateAsync({
-        betAmount
+      console.log(`⚡ Dropping ball with wallet nonce: ${walletNonce}`);
+
+      // Fire and forget - don't await or block on this
+      submitTransactionMutation.mutate({
+        betAmount,
+        walletNonce
       });
 
     } catch (error) {
       console.error('Error dropping ball:', error);
-    } finally {
-      setIsDropping(false);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setTransactionStatus({ stage: 'idle', error: errorMessage });
     }
-  }, [engineRef, isDropping, isFullyAuthenticated, submitTransactionMutation]);
+  }, [engineRef, isFullyAuthenticated, submitTransactionMutation, getNextNonce]);
 
   // Keyboard controls: spacebar to drop balls
   useEffect(() => {
@@ -422,22 +454,84 @@ const PlinkoGame = () => {
     <div className="min-h-[calc(100vh-8rem)]">
       {/* Main Content */}
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-8rem)] p-4 md:p-8">
-        {/* Transaction Status */}
+        {/* 3-Stage Transaction Status */}
+        {transactionStatus.stage !== 'idle' && (
+          <div className="mb-4 space-y-2">
+            {/* Stage 1: Outcome received - Ball drops */}
+            {transactionStatus.stage === 'outcome' && (
+              <div className="px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
+                🎯 Ball dropped! Submitting transaction...
+              </div>
+            )}
+
+            {/* Stage 2: Transaction submitted */}
+            {transactionStatus.stage === 'submitted' && transactionStatus.hash && (
+              <div className="space-y-2">
+                <div className="px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
+                  🎯 Ball dropped!
+                </div>
+                <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium">
+                  📡 Transaction submitted: {transactionStatus.hash.slice(0, 10)}...
+                  <br />Waiting for blockchain confirmation...
+                </div>
+              </div>
+            )}
+
+            {/* Stage 3: Transaction confirmed */}
+            {transactionStatus.stage === 'confirmed' && (
+              <div className="space-y-2">
+                <div className="px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
+                  🎯 Ball dropped!
+                </div>
+                <div className="px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
+                  ✅ Transaction confirmed on blockchain!
+                  {transactionStatus.hash && (
+                    <>
+                      <br />Hash: {transactionStatus.hash.slice(0, 10)}...
+                    </>
+                  )}
+                  {transactionStatus.receipt?.blockNumber && (
+                    <>
+                      <br />Block: {transactionStatus.receipt.blockNumber.toString()}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Wallet Nonce Loading Status */}
+        {nonceLoading && (
+          <div className="mb-4 px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium">
+            🔄 Loading wallet nonce...
+          </div>
+        )}
+
+        {/* Wallet Nonce Error Status */}
+        {nonceError && (
+          <div className="mb-4 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm font-medium">
+            ⚠️ Wallet nonce error: {nonceError}
+            <button 
+              onClick={resetNonce}
+              className="ml-2 underline hover:no-underline"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Error Status */}
+        {transactionStatus.error && (
+          <div className="mb-4 px-4 py-2 bg-red-100 text-red-800 rounded-lg text-sm font-medium">
+            ❌ Transaction failed: {transactionStatus.error}
+          </div>
+        )}
+
+        {/* Processing Status */}
         {submitTransactionMutation.isPending && (
           <div className="mb-4 px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium">
-            Processing transaction via session key...
-          </div>
-        )}
-
-        {submitTransactionMutation.isError && submitTransactionMutation.error && (
-          <div className="mb-4 px-4 py-2 bg-red-100 text-red-800 rounded-lg text-sm font-medium">
-            Transaction failed: {submitTransactionMutation.error.message}
-          </div>
-        )}
-
-        {submitTransactionMutation.isSuccess && submitTransactionMutation.data && (
-          <div className="mb-4 px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
-            Transaction successful! Ball dropped. Hash: {submitTransactionMutation.data.hash.slice(0, 10)}...
+            🎲 Generating outcome...
           </div>
         )}
 

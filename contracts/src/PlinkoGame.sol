@@ -2,8 +2,8 @@
 pragma solidity ^0.8.13;
 
 contract PlinkoGame {
-    // Player nonce to prevent replay attacks
-    mapping(address => uint256) public playerNonces;
+    // Track used game IDs to prevent replay attacks
+    mapping(address => mapping(bytes32 => bool)) public usedGameIds;
 
     // Server signer to verify server signatures
     address public serverSigner;
@@ -29,7 +29,7 @@ contract PlinkoGame {
     function playRound(
         uint256 randomSeed,
         uint256 multiplier,
-        uint256 nonce,
+        bytes32 gameId,
         bytes calldata serverSignature
     ) external payable {
         // Ensure bet amount is within bounds
@@ -37,9 +37,9 @@ contract PlinkoGame {
             revert InvalidBetAmount();
         }
 
-        // Ensure isn't replaying the same claim
-        if (nonce != playerNonces[msg.sender]) {
-            revert InvalidNonce();
+        // Ensure this game hasn't been played before
+        if (usedGameIds[msg.sender][gameId]) {
+            revert GameAlreadyPlayed();
         }
 
         // Create message hash for signature verification
@@ -52,7 +52,7 @@ contract PlinkoGame {
                         msg.value,
                         randomSeed,
                         multiplier,
-                        nonce
+                        gameId
                     )
                 )
             )
@@ -72,8 +72,8 @@ contract PlinkoGame {
             revert InsufficientContractBalance();
         }
 
-        // Increment player nonce
-        playerNonces[msg.sender]++;
+        // Mark this game ID as used
+        usedGameIds[msg.sender][gameId] = true;
 
         // Instant payout to player
         if (payout > 0) {
@@ -84,9 +84,7 @@ contract PlinkoGame {
         }
 
         emit RoundPlayed(
-            keccak256(
-                abi.encodePacked(msg.sender, randomSeed, nonce, block.timestamp)
-            ),
+            gameId,
             msg.sender,
             msg.value,
             randomSeed,
@@ -157,8 +155,8 @@ contract PlinkoGame {
     /*                       VIEW FUNCTIONS                       */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function getPlayerNonce(address player) external view returns (uint256) {
-        return playerNonces[player];
+    function isGameIdUsed(address player, bytes32 gameId) external view returns (bool) {
+        return usedGameIds[player][gameId];
     }
 
     function getContractBalance() external view returns (uint256) {
@@ -188,7 +186,7 @@ contract PlinkoGame {
 
     error InvalidSignature();
     error InvalidBetAmount();
-    error InvalidNonce();
+    error GameAlreadyPlayed();
     error InsufficientContractBalance();
     error TransferFailed();
 
@@ -197,7 +195,7 @@ contract PlinkoGame {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     event RoundPlayed(
-        bytes32 indexed roundId,
+        bytes32 indexed gameId,
         address indexed player,
         uint256 betAmount,
         uint256 randomSeed,

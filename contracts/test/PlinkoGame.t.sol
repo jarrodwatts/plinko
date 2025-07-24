@@ -76,7 +76,7 @@ contract PlinkoGameTest is Test {
         uint256 betAmount = 0.1 ether;
         uint256 randomSeed = 12345;
         uint256 multiplier = 300; // 3x
-        uint256 nonce = 0;
+        bytes32 gameId = keccak256(abi.encodePacked("game1"));
 
         // Create signature
         bytes memory signature = _createSignature(
@@ -84,7 +84,7 @@ contract PlinkoGameTest is Test {
             betAmount,
             randomSeed,
             multiplier,
-            nonce
+            gameId
         );
 
         // Record initial player balance
@@ -94,12 +94,12 @@ contract PlinkoGameTest is Test {
         plinkoGame.playRound{value: betAmount}(
             randomSeed,
             multiplier,
-            nonce,
+            gameId,
             signature
         );
 
-        // Check nonce incremented
-        assertEq(plinkoGame.getPlayerNonce(player1), 1);
+        // Check gameId is marked as used
+        assertTrue(plinkoGame.isGameIdUsed(player1, gameId));
 
         // Check instant payout (no house edge calculation, handled by probability matrix)
         uint256 expectedPayout = (betAmount * multiplier) / 100;
@@ -113,14 +113,14 @@ contract PlinkoGameTest is Test {
         uint256 betAmount = 0.0001 ether; // Too small
         uint256 randomSeed = 12345;
         uint256 multiplier = 300;
-        uint256 nonce = 0;
+        bytes32 gameId = keccak256(abi.encodePacked("game1"));
 
         bytes memory signature = _createSignature(
             player1,
             betAmount,
             randomSeed,
             multiplier,
-            nonce
+            gameId
         );
 
         vm.prank(player1);
@@ -128,31 +128,41 @@ contract PlinkoGameTest is Test {
         plinkoGame.playRound{value: betAmount}(
             randomSeed,
             multiplier,
-            nonce,
+            gameId,
             signature
         );
     }
 
-    function testPlayRoundInvalidNonce() public {
+    function testPlayRoundGameAlreadyPlayed() public {
         uint256 betAmount = 0.1 ether;
         uint256 randomSeed = 12345;
         uint256 multiplier = 300;
-        uint256 wrongNonce = 5; // Should be 0
+        bytes32 gameId = keccak256(abi.encodePacked("game1"));
 
         bytes memory signature = _createSignature(
             player1,
             betAmount,
             randomSeed,
             multiplier,
-            wrongNonce
+            gameId
         );
 
+        // Play the game once
         vm.prank(player1);
-        vm.expectRevert(PlinkoGame.InvalidNonce.selector);
         plinkoGame.playRound{value: betAmount}(
             randomSeed,
             multiplier,
-            wrongNonce,
+            gameId,
+            signature
+        );
+
+        // Try to play the same game again
+        vm.prank(player1);
+        vm.expectRevert(PlinkoGame.GameAlreadyPlayed.selector);
+        plinkoGame.playRound{value: betAmount}(
+            randomSeed,
+            multiplier,
+            gameId,
             signature
         );
     }
@@ -164,7 +174,7 @@ contract PlinkoGameTest is Test {
         uint256 betAmount = 0.1 ether;
         uint256 randomSeed = 12345;
         uint256 multiplier = 300;
-        uint256 nonce = 0;
+        bytes32 gameId = keccak256(abi.encodePacked("game1"));
 
         // Create signature with wrong private key
         uint256 wrongPrivateKey = 0x987654321;
@@ -174,7 +184,7 @@ contract PlinkoGameTest is Test {
             betAmount,
             randomSeed,
             multiplier,
-            nonce
+            gameId
         );
 
         vm.prank(player1);
@@ -182,37 +192,38 @@ contract PlinkoGameTest is Test {
         plinkoGame.playRound{value: betAmount}(
             randomSeed,
             multiplier,
-            nonce,
+            gameId,
             wrongSignature
         );
     }
 
     function testMultipleRounds() public {
-        // Play multiple rounds with increasing nonce
+        // Play multiple rounds with different gameIds
         for (uint256 i = 0; i < 3; i++) {
             uint256 betAmount = 0.05 ether;
             uint256 randomSeed = 12345 + i;
             uint256 multiplier = 150; // 1.5x
-            uint256 nonce = i;
+            bytes32 gameId = keccak256(abi.encodePacked("game", i));
 
             bytes memory signature = _createSignature(
                 player1,
                 betAmount,
                 randomSeed,
                 multiplier,
-                nonce
+                gameId
             );
 
             vm.prank(player1);
             plinkoGame.playRound{value: betAmount}(
                 randomSeed,
                 multiplier,
-                nonce,
+                gameId,
                 signature
             );
-        }
 
-        assertEq(plinkoGame.getPlayerNonce(player1), 3);
+            // Check each gameId is marked as used
+            assertTrue(plinkoGame.isGameIdUsed(player1, gameId));
+        }
     }
 
     function testOwnerFunctions() public {
@@ -268,7 +279,7 @@ contract PlinkoGameTest is Test {
         multiplierIndex = uint8(bound(multiplierIndex, 0, 16));
 
         uint256 multiplier = MULTIPLIERS[multiplierIndex];
-        uint256 nonce = 0;
+        bytes32 gameId = keccak256(abi.encodePacked(randomSeed, block.timestamp));
 
         // Calculate expected payout to ensure contract has enough balance
         uint256 expectedPayout = (betAmount * multiplier) / 100;
@@ -283,7 +294,7 @@ contract PlinkoGameTest is Test {
             betAmount,
             randomSeed,
             multiplier,
-            nonce
+            gameId
         );
 
         // Record initial balance
@@ -293,12 +304,12 @@ contract PlinkoGameTest is Test {
         plinkoGame.playRound{value: betAmount}(
             randomSeed,
             multiplier,
-            nonce,
+            gameId,
             signature
         );
 
-        // Verify state changes
-        assertEq(plinkoGame.getPlayerNonce(player1), 1);
+        // Verify gameId is marked as used
+        assertTrue(plinkoGame.isGameIdUsed(player1, gameId));
 
         // Verify instant payout
         uint256 expectedFinalBalance = initialBalance -
@@ -313,7 +324,7 @@ contract PlinkoGameTest is Test {
         uint256 betAmount,
         uint256 randomSeed,
         uint256 multiplier,
-        uint256 nonce
+        bytes32 gameId
     ) internal view returns (bytes memory) {
         return
             _createSignatureWithKey(
@@ -322,7 +333,7 @@ contract PlinkoGameTest is Test {
                 betAmount,
                 randomSeed,
                 multiplier,
-                nonce
+                gameId
             );
     }
 
@@ -332,10 +343,10 @@ contract PlinkoGameTest is Test {
         uint256 betAmount,
         uint256 randomSeed,
         uint256 multiplier,
-        uint256 nonce
+        bytes32 gameId
     ) internal pure returns (bytes memory) {
         bytes32 messageHash = keccak256(
-            abi.encodePacked(player, betAmount, randomSeed, multiplier, nonce)
+            abi.encodePacked(player, betAmount, randomSeed, multiplier, gameId)
         );
         bytes32 ethSignedMessageHash = keccak256(
             abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash)
