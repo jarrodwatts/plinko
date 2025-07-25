@@ -27,7 +27,7 @@ import { CONTAINER_PROBABILITIES, PRECISION } from '@/config/probabilities';
 export async function POST(request: NextRequest) {
   const startTime = performance.now();
   let stepTime = startTime;
-  
+
   const logStep = (stepName: string) => {
     const now = performance.now();
     const stepDuration = now - stepTime;
@@ -58,9 +58,6 @@ export async function POST(request: NextRequest) {
       ironOptions
     );
     logStep('Get iron session');
-
-    console.log('isAuthenticated', isAuthenticated);
-    console.log('playerAddress', playerAddress);
 
     if (!isAuthenticated || !playerAddress) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -147,16 +144,16 @@ export async function POST(request: NextRequest) {
               value: betAmountWei,
               ...(typeof walletNonce === 'number' && { nonce: walletNonce }),
             };
-            
+
             if (typeof walletNonce === 'number') {
               console.log(`🎯 Using explicit wallet nonce: ${walletNonce}`);
             } else {
               console.log('🎯 Using auto-nonce (fallback)');
             }
-            
+
             const hash = await agwSessionClient.writeContract(writeContractParams);
             logStep('🔴 SUBMIT TRANSACTION TO BLOCKCHAIN');
-            
+
             // Chunk 2: Transaction submitted
             const transactionChunk = {
               type: 'transaction_submitted',
@@ -170,7 +167,7 @@ export async function POST(request: NextRequest) {
             // Chunk 3: Wait for transaction receipt
             const receipt = await publicClient.waitForTransactionReceipt({ hash });
             logStep('🔴 TRANSACTION CONFIRMED ON BLOCKCHAIN');
-            
+
             // Chunk 3: Transaction confirmed
             const confirmationChunk = {
               type: 'transaction_confirmed',
@@ -182,15 +179,15 @@ export async function POST(request: NextRequest) {
             };
             controller.enqueue(encoder.encode(serializeWithBigIntSupport(confirmationChunk) + '\n'));
             console.log('🚀 Chunk 3: Transaction confirmation sent');
-            
+
             const totalTime = performance.now() - startTime;
             console.log(`🎯 TOTAL REQUEST TIME: ${totalTime.toFixed(2)}ms`);
-            
+
             clearTimeout(timeout);
             controller.close();
           } catch (error) {
             console.error('Transaction error:', error);
-            
+
             const errorChunk = {
               type: 'error',
               message: error instanceof Error ? error.message : 'Transaction failed'
@@ -213,7 +210,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Plinko play round error:', error);
-    
+
     // Return streaming error response
     const encoder = new TextEncoder();
     const errorStream = new ReadableStream({

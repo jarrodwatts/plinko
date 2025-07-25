@@ -8,10 +8,12 @@ import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { WalletDisplay } from "./WalletDisplay";
 import { PRIMARY_COLOR, PRIMARY_HOVER } from "@/lib/colors";
+import { useAuthSession } from "@/hooks/use-auth-session";
 
 const Header = () => {
   const { address } = useAccount();
   const { data: session } = useAbstractSession();
+  const { data: authSession } = useAuthSession();
 
   return (
     <header
@@ -36,7 +38,7 @@ const Header = () => {
           </Link>
         </div>
         <div className="flex items-center gap-4">
-          {address && session ? (
+          {address && session && authSession?.isAuthenticated ? (
             <WalletDisplay />
           ) : (
             <SignInModal>

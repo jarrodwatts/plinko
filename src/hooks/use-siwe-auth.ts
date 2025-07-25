@@ -36,7 +36,7 @@ export function useSiweAuth() {
         chainId: abstractTestnet.id,
         nonce,
         issuedAt: new Date().toISOString(),
-        expirationTime: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(), // 24 hours
+        expirationTime: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(), // 24 hours
       });
 
       // Step 3: Sign the message
