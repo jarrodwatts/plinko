@@ -20,10 +20,12 @@ interface OutcomeChunk extends StreamChunk {
 interface TransactionChunk extends StreamChunk {
   type: 'transaction_submitted';
   hash: string;
+  gameId: string;
 }
 
 interface ConfirmationChunk extends StreamChunk {
   type: 'transaction_confirmed';
+  gameId: string;
   receipt: {
     blockNumber: bigint;
     gasUsed: string;
@@ -71,8 +73,8 @@ interface PlayRoundResponse extends PlayRoundOutcome {
 
 interface UsePlinkoPlayRoundOptions {
   onSuccess?: (data: PlayRoundOutcome) => void;
-  onTransactionSubmitted?: (hash: string) => void;
-  onTransactionConfirmed?: (receipt: ConfirmationChunk['receipt']) => void;
+  onTransactionSubmitted?: (hash: string, gameId: string) => void;
+  onTransactionConfirmed?: (receipt: ConfirmationChunk['receipt'], gameId: string) => void;
   onError?: (error: Error) => void;
   onNonceError?: () => void;
 }
@@ -167,19 +169,30 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
               } else if (data.type === 'transaction_submitted') {
                 const transactionTime = performance.now() - startTime;
                 hash = data.hash;
-                options?.onTransactionSubmitted?.(hash!);
+                options?.onTransactionSubmitted?.(hash!, data.gameId);
                 console.log(`⏱️  [CLIENT] 📡 TRANSACTION SUBMITTED in ${transactionTime.toFixed(2)}ms`);
                 console.log('🚀 Transaction submitted:', hash);
               } else if (data.type === 'transaction_confirmed') {
                 const confirmationTime = performance.now() - startTime;
                 receipt = data.receipt;
-                options?.onTransactionConfirmed?.(receipt);
+                options?.onTransactionConfirmed?.(receipt, data.gameId);
                 console.log(`⏱️  [CLIENT] ✅ TRANSACTION CONFIRMED in ${confirmationTime.toFixed(2)}ms`);
                 console.log('🚀 Transaction confirmed:', receipt);
               } else if (data.type === 'error') {
                 throw new Error(data.message);
               }
             } catch {
+              // Check if the unparseable chunk contains nonce error
+              if (line.toLowerCase().includes('nonce too low')) {
+                console.error('🚨 Critical nonce error detected in unparseable chunk:', line);
+                // Create a synthetic error chunk to be handled by existing error flow
+                const syntheticErrorChunk: ErrorChunk = {
+                  type: 'error',
+                  message: `Nonce too low: ${line}`
+                };
+                // Process it through the normal error handling
+                throw new Error(syntheticErrorChunk.message);
+              }
               console.warn('Failed to parse chunk:', line);
             }
           }

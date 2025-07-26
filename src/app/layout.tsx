@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { Inter as FontSans } from "next/font/google";
 import NextAbstractWalletProvider from "@/components/NextAbstractWalletProvider";
 import Header from "@/components/Header";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -71,6 +72,7 @@ export default function RootLayout({
           <main className="pt-[70px] sm:pt-[70px]">
             {children}
           </main>
+          <Toaster />
         </body>
       </NextAbstractWalletProvider>
     </html>

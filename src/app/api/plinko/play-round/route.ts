@@ -157,7 +157,8 @@ export async function POST(request: NextRequest) {
             // Chunk 2: Transaction submitted
             const transactionChunk = {
               type: 'transaction_submitted',
-              hash
+              hash,
+              gameId: gameIdHex
             };
             controller.enqueue(encoder.encode(serializeWithBigIntSupport(transactionChunk) + '\n'));
             console.log('🚀 Chunk 2: Transaction hash sent');
@@ -171,6 +172,7 @@ export async function POST(request: NextRequest) {
             // Chunk 3: Transaction confirmed
             const confirmationChunk = {
               type: 'transaction_confirmed',
+              gameId: gameIdHex,
               receipt: {
                 blockNumber: receipt.blockNumber,
                 gasUsed: receipt.gasUsed?.toString(),
