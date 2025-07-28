@@ -27,6 +27,9 @@ const PlinkoGame = () => {
   const engineRef = useRef<Matter.Engine | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
   const ballsRef = useRef<Matter.Body[]>([]);
+  const pegsRef = useRef<Matter.Body[]>([]);
+  const bucketsRef = useRef<Matter.Body[]>([]);
+  const pegAnimationTimeouts = useRef<Map<Matter.Body, NodeJS.Timeout>>(new Map());
   const [dimensions, setDimensions] = useState({ width: 800, height: 620 });
 
   // Transaction status tracking (for UI feedback only)
@@ -264,9 +267,12 @@ const PlinkoGame = () => {
           peg = bodyB;
         }
 
-        // Handle peg bounce sounds
+        // Handle peg bounce sounds and visual effects
         if (ball && peg) {
           playBounce();
+          
+          // Add visual effect to peg on collision
+          animatePegHit(peg);
         }
 
         if (ball && bucket) {
@@ -278,11 +284,13 @@ const PlinkoGame = () => {
 
             console.log(`Ball ${ballOutcome.gameId} scored: ${ballOutcome.multiplier}x (Target bucket: ${ballOutcome.targetBucket})`);
 
-            // Play appropriate landing sound
+            // Play appropriate landing sound and animate bucket
             if (ballOutcome.multiplier === 11000) { // 110x multiplier
               playBigWin();
+              animateBucketLanding(bucket, 'big-win');
             } else {
               playLand();
+              animateBucketLanding(bucket, ballOutcome.multiplier);
             }
 
             // Reveal the result in the GameHistoryTable now that the ball has landed
@@ -381,6 +389,7 @@ const PlinkoGame = () => {
           label: 'peg' // Add label to identify pegs
         });
         pegs.push(peg);
+        pegsRef.current.push(peg);
       }
     }
 
@@ -426,6 +435,7 @@ const PlinkoGame = () => {
         label: `bucket-${multipliers[i]}` // Used for collision detection
       });
       buckets.push(bucket);
+      bucketsRef.current.push(bucket);
     }
 
     // Add all physics bodies to the world
@@ -442,6 +452,12 @@ const PlinkoGame = () => {
       Matter.Runner.stop(runner);
       Matter.Engine.clear(engine);
       render.canvas.remove();
+      // Clear references and timeouts
+      pegsRef.current = [];
+      bucketsRef.current = [];
+      // Clear all peg animation timeouts
+      pegAnimationTimeouts.current.forEach(timeout => clearTimeout(timeout));
+      pegAnimationTimeouts.current.clear();
     };
   }, [BUCKET_WIDTH, revealBallResult]); // Only create physics world once
 
@@ -505,6 +521,121 @@ const PlinkoGame = () => {
       }
     }, 15000);
   }, [engineRef, CANVAS_WIDTH, BUCKET_TO_VELOCITY]);
+
+  /**
+   * Animates a peg when hit by a ball
+   */
+  const animatePegHit = useCallback((peg: Matter.Body) => {
+    if (!peg.render) return;
+
+    // Clear any existing timeout for this peg
+    const existingTimeout = pegAnimationTimeouts.current.get(peg);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Store original colors (only if not already animated)
+    const originalFill = '#e2e8f0';
+    const originalStroke = '#cbd5e1';
+
+    // Set hit colors (bright blue glow)
+    peg.render.fillStyle = PRIMARY_COLOR; // Bright blue
+    peg.render.strokeStyle = '#ffffff'; // White stroke
+    peg.render.lineWidth = 2;
+
+    // Fade back to original after 150ms
+    const timeout = setTimeout(() => {
+      if (peg.render) {
+        peg.render.fillStyle = originalFill;
+        peg.render.strokeStyle = originalStroke;
+        peg.render.lineWidth = 1;
+      }
+      // Remove timeout from map
+      pegAnimationTimeouts.current.delete(peg);
+    }, 150);
+
+    // Store timeout for this peg
+    pegAnimationTimeouts.current.set(peg, timeout);
+  }, []);
+
+  /**
+   * Animates a bucket when a ball lands in it
+   */
+  const animateBucketLanding = useCallback((bucket: Matter.Body, multiplierOrType: number | 'big-win') => {
+    if (!bucket.render) return;
+
+    // Store original colors
+    const originalFill = bucket.render.fillStyle;
+    const originalStroke = bucket.render.strokeStyle;
+    const originalLineWidth = bucket.render.lineWidth;
+
+    // Determine animation colors based on multiplier
+    let glowColor: string;
+    let strokeColor: string;
+    let duration: number;
+
+    if (multiplierOrType === 'big-win') {
+      // Epic gold animation for 110x wins
+      glowColor = '#FFD700'; // Gold
+      strokeColor = '#FFA500'; // Orange
+      duration = 800; // Longer for big wins
+    } else {
+      const multiplier = multiplierOrType as number;
+      if (multiplier >= 4200) { // 42x
+        glowColor = '#FF6B35'; // Orange-red
+        strokeColor = '#FF4500';
+        duration = 600;
+      } else if (multiplier >= 1000) { // 10x
+        glowColor = '#FF8C42'; // Orange
+        strokeColor = '#FF6B35';
+        duration = 500;
+      } else if (multiplier >= 500) { // 5x
+        glowColor = '#4ECDC4'; // Teal
+        strokeColor = '#26A69A';
+        duration = 400;
+      } else if (multiplier >= 300) { // 3x
+        glowColor = '#45B7D1'; // Light blue
+        strokeColor = '#2196F3';
+        duration = 350;
+      } else if (multiplier >= 100) { // 1x+
+        glowColor = '#96CEB4'; // Light green
+        strokeColor = '#4CAF50';
+        duration = 300;
+      } else {
+        // Loss buckets (0.3x, 0.5x)
+        glowColor = '#FF7675'; // Light red
+        strokeColor = '#E74C3C';
+        duration = 250;
+      }
+    }
+
+    // Apply glow effect
+    bucket.render.fillStyle = glowColor;
+    bucket.render.strokeStyle = strokeColor;
+    bucket.render.lineWidth = 3;
+
+    // For big wins, add a pulsing effect
+    if (multiplierOrType === 'big-win') {
+      let pulseCount = 0;
+      const pulseInterval = setInterval(() => {
+        if (bucket.render && pulseCount < 4) {
+          bucket.render.lineWidth = bucket.render.lineWidth === 3 ? 5 : 3;
+          pulseCount++;
+        } else {
+          clearInterval(pulseInterval);
+        }
+      }, 100);
+    }
+
+    // Fade back to original after duration
+    setTimeout(() => {
+      if (bucket.render) {
+        bucket.render.fillStyle = originalFill;
+        bucket.render.strokeStyle = originalStroke;
+        bucket.render.lineWidth = originalLineWidth;
+      }
+    }, duration);
+  }, []);
 
   /**
    * Drops a ball by triggering server-controlled randomness and transaction
