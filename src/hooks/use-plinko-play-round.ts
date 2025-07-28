@@ -228,7 +228,7 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
                   console.error('Structured error from fallback JSON parse - throwing error:', data);
                   throw structuredError;
                 }
-              } catch (jsonError) {
+              } catch {
                 // Check if the unparseable chunk contains nonce error
                 if (line.toLowerCase().includes('nonce too low')) {
                   console.error('🚨 Critical nonce error detected in unparseable chunk:', line);

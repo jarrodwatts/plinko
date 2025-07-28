@@ -214,7 +214,7 @@ const PlinkoGame = () => {
   const { playBallDrop, playBounce, playLand, playBigWin } = useAudio();
 
   // ETH balance management
-  const { balanceEth, isLoading: balanceLoading, error: balanceError, refetch: refetchBalance } = useEthBalance();
+  const { balanceEth, refetch: refetchBalance } = useEthBalance();
 
   // Demo mode state with auto-switching based on wallet connection
   const [isDemoMode, setIsDemoMode] = useState(!isConnected);
@@ -559,7 +559,8 @@ const PlinkoGame = () => {
       bucketTimeouts.forEach(timeout => clearTimeout(timeout));
       bucketTimeouts.clear();
     };
-  }, [BUCKET_WIDTH, revealBallResult]); // BUCKET_WIDTH affects bucket rendering, revealBallResult is used in collision handler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [BUCKET_WIDTH, revealBallResult, playBigWin, playBounce, playLand]); // BUCKET_WIDTH affects bucket rendering, revealBallResult is used in collision handler. animateBucketLanding and animatePegHit are stable callbacks defined later
 
   /**
    * Creates a ball with server-determined outcome using velocity mapping
