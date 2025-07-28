@@ -28,7 +28,7 @@ export function PlayerCard() {
     <div className="bg-black/10 backdrop-blur-sm border border-white/10 rounded-xl p-4 mb-6 relative">
       {/* Tier badge - positioned absolutely in top right */}
       {!isLoading && (
-        <span 
+        <span
           className="absolute top-3 right-3 text-xs font-medium px-2 py-0.5 rounded-full border"
           style={{
             color: profile?.user?.tier ? getTierColor(profile.user.tier) : '#C0C0C0',
@@ -39,7 +39,7 @@ export function PlayerCard() {
           {tierName}
         </span>
       )}
-      
+
       {/* Main content */}
       <div className="flex items-center space-x-3">
         <PlayerAvatar
@@ -48,7 +48,7 @@ export function PlayerCard() {
           size="lg"
           showTooltip={false}
         />
-        
+
         <div className="flex-1 min-w-0">
           {isLoading ? (
             <div className="space-y-2">
@@ -60,13 +60,13 @@ export function PlayerCard() {
               <h3 className="text-white font-semibold text-sm truncate">
                 {displayName}
               </h3>
-              <p className="text-gray-400 text-xs">
+              <div className="text-gray-400 text-xs">
                 {balanceLoading ? (
                   <Skeleton className="h-3 w-16" />
                 ) : (
                   `${parseFloat(formatEther(balance?.value || BigInt(0))).toFixed(4)} ETH`
                 )}
-              </p>
+              </div>
             </>
           )}
         </div>

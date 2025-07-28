@@ -912,23 +912,29 @@ const PlinkoGame = () => {
 
                   {/* Play Button Section - Shown below bet amount on all screens */}
                   <div className="mb-6">
-                    <ShinyButton
-                      onClick={isFullyAuthenticated && !isDemoMode ? dropBall : dropDemoBall}
-                      disabled={false}
-                      className="w-full"
-                    >
-                      {(() => {
-                        if (isFullyAuthenticated && !isDemoMode) {
-                          if (balanceEth !== null && betAmount > balanceEth) {
-                            return 'Insufficient Balance';
-                          } else {
-                            return 'Drop Ball';
-                          }
-                        } else {
-                          return 'Drop Ball (Demo Mode)';
-                        }
-                      })()}
-                    </ShinyButton>
+                    {(() => {
+                      const hasInsufficientBalance = Boolean(isFullyAuthenticated && !isDemoMode && balanceEth !== null && betAmount > balanceEth);
+
+                      return (
+                        <ShinyButton
+                          onClick={isFullyAuthenticated && !isDemoMode ? dropBall : dropDemoBall}
+                          disabled={hasInsufficientBalance}
+                          className={`w-full ${hasInsufficientBalance ? 'bg-red-500 hover:bg-red-600 border-red-400 text-white' : ''}`}
+                        >
+                          {(() => {
+                            if (isFullyAuthenticated && !isDemoMode) {
+                              if (hasInsufficientBalance) {
+                                return 'Insufficient Balance';
+                              } else {
+                                return 'Drop Ball';
+                              }
+                            } else {
+                              return 'Drop Ball (Demo Mode)';
+                            }
+                          })()}
+                        </ShinyButton>
+                      );
+                    })()}
 
                     <p className="text-xs text-gray-400 text-center mt-3">
                       or press <kbd className="px-1.5 py-0.5 bg-gray-700 text-gray-200 rounded text-xs font-mono">space</kbd> to drop ball
