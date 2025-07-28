@@ -379,9 +379,6 @@ const PlinkoGame = () => {
 
             // Mark that this ball has landed - UI can now show the results
             setBallsLanded(prev => new Set(prev).add(ballOutcome.gameId));
-          } else {
-            // Fallback to bucket multiplier for any balls without outcome data
-            const multiplier = parseFloat(bucket.label.split('-')[1]);
           }
 
           // Remove ball

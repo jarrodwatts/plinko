@@ -123,38 +123,23 @@ function categorizeError(error: unknown): StructuredError {
 }
 
 export async function POST(request: NextRequest) {
-  const startTime = performance.now();
-  let stepTime = startTime;
-
-  const logStep = (stepName: string) => {
-    const now = performance.now();
-    const stepDuration = now - stepTime;
-    const totalDuration = now - startTime;
-    stepTime = now;
-  };
-
   try {
     // Destructure the request body
     const body = await request.json();
     const { sessionConfig: rawSessionConfig, betAmount, walletNonce } = body;
-    logStep('Parse request body');
-
 
     // Format items from the request body
     const sessionConfig = deserializeWithBigInt(rawSessionConfig);
     const betAmountWei = parseEther(betAmount.toString());
-    logStep('Format request data');
 
     // Setup required environment variables
     const { PRIVY_APP_ID: privyAppId, PRIVY_APP_SECRET: privyAppSecret, PRIVY_SERVER_WALLET_ID: serverWalletId, PRIVY_SERVER_WALLET_ADDRESS: serverWalletAddress } = process.env;
-    logStep('Setup environment variables');
 
     // Get iron session for authentication status and player address
     const { isAuthenticated, address: playerAddress } = await getIronSession<AuthSessionData>(
       await cookies(),
       ironOptions
     );
-    logStep('Get iron session');
 
     if (!isAuthenticated || !playerAddress) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -163,7 +148,6 @@ export async function POST(request: NextRequest) {
     // Generate cryptographically secure random outcome and unique game ID
     const { randomSeed, targetBucket, multiplier } = generateProbabilityBasedOutcome();
     const gameId = randomBytes(32); // Generate unique game ID
-    logStep('Generate random outcome and game ID');
 
     // Create streaming response immediately - send outcome first!
     const encoder = new TextEncoder();
@@ -208,7 +192,6 @@ export async function POST(request: NextRequest) {
             } catch (balanceError) {
               throw balanceError;
             }
-            logStep('Check player balance');
 
             // Create message hash for signing (proves randomness authenticity)
             const messageHash = keccak256(
@@ -217,7 +200,6 @@ export async function POST(request: NextRequest) {
                 [playerAddress as `0x${string}`, betAmountWei, BigInt(randomSeed), BigInt(multiplier), gameIdHex]
               )
             );
-            logStep('Create message hash');
 
             // Initialize Privy client and create server wallet account
             const privy = new PrivyClient(privyAppId!, privyAppSecret!);
@@ -226,13 +208,11 @@ export async function POST(request: NextRequest) {
               address: serverWalletAddress as Address,
               privy: privy as unknown as Parameters<typeof createViemAccount>[0]['privy'],
             });
-            logStep('🔴 INITIALIZE PRIVY + SERVER WALLET');
 
             // Sign the message (server signature for contract validation)
             const signature = await account.signMessage({
               message: { raw: messageHash }
             });
-            logStep('🔴 SIGN MESSAGE WITH SERVER WALLET');
 
             // Initialize the AGW Session client for transaction submission
             const agwSessionClient = createSessionClient({
@@ -241,7 +221,6 @@ export async function POST(request: NextRequest) {
               signer: account, // Privy server wallet as the signer
               session: sessionConfig,
             });
-            logStep('🔴 CREATE AGW SESSION CLIENT');
 
             // Chunk 2: Submit transaction with explicit nonce if provided
             const writeContractParams = {
@@ -256,7 +235,6 @@ export async function POST(request: NextRequest) {
             };
 
             const hash = await agwSessionClient.writeContract(writeContractParams);
-            logStep('🔴 SUBMIT TRANSACTION TO BLOCKCHAIN');
 
             // Chunk 2: Transaction submitted
             const transactionChunk = {
@@ -268,7 +246,6 @@ export async function POST(request: NextRequest) {
 
             // Chunk 3: Wait for transaction receipt
             const receipt = await publicClient.waitForTransactionReceipt({ hash });
-            logStep('🔴 TRANSACTION CONFIRMED ON BLOCKCHAIN');
 
             // Chunk 3: Transaction confirmed
             const confirmationChunk = {
@@ -281,8 +258,6 @@ export async function POST(request: NextRequest) {
               }
             };
             controller.enqueue(encoder.encode(serializeWithBigIntSupport(confirmationChunk) + '\n'));
-
-            const totalTime = performance.now() - startTime;
 
             clearTimeout(timeout);
             controller.close();

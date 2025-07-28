@@ -103,24 +103,14 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
         throw new Error('No active session found');
       }
 
-      const startTime = performance.now();
-
-      // Timing: Serialize session config
-      const serializeStart = performance.now();
       const serializedSession = serializeWithBigInt(session);
-      const serializeTime = performance.now() - serializeStart;
 
-      // Timing: Create request body
-      const bodyStart = performance.now();
       const requestBody = JSON.stringify({
         betAmount,
         walletNonce,
         sessionConfig: serializedSession,
       });
-      const bodyTime = performance.now() - bodyStart;
 
-      // Timing: Actual fetch call
-      const fetchStart = performance.now();
       const response = await fetch('/api/plinko/play-round', {
         method: 'POST',
         headers: {
@@ -128,9 +118,6 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
         },
         body: requestBody,
       });
-      const fetchTime = performance.now() - fetchStart;
-
-      const totalRequestTime = performance.now() - startTime;
 
       if (!response.ok) {
         throw new Error('Failed to start game round');
@@ -146,7 +133,6 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
       let outcome: PlayRoundOutcome | null = null;
       let hash: string | undefined;
       let receipt: ConfirmationChunk['receipt'] | undefined;
-      let outcomeTime: number | null = null;
 
       try {
         while (true) {
@@ -161,7 +147,6 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
               const data = deserializeWithBigIntSupport(line);
 
               if (data.type === 'outcome') {
-                outcomeTime = performance.now() - startTime;
                 outcome = {
                   randomSeed: data.randomSeed,
                   multiplier: data.multiplier,
@@ -171,11 +156,9 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
                 // Call success immediately for ball drop
                 options?.onSuccess?.(outcome);
               } else if (data.type === 'transaction_submitted') {
-                const transactionTime = performance.now() - startTime;
                 hash = data.hash;
                 options?.onTransactionSubmitted?.(hash!, data.gameId);
               } else if (data.type === 'transaction_confirmed') {
-                const confirmationTime = performance.now() - startTime;
                 receipt = data.receipt;
                 options?.onTransactionConfirmed?.(receipt, data.gameId);
               } else if (data.type === 'error') {
