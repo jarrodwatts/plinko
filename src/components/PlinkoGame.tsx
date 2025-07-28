@@ -560,7 +560,7 @@ const PlinkoGame = () => {
       bucketTimeouts.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [BUCKET_WIDTH, revealBallResult, playBigWin, playBounce, playLand]); // BUCKET_WIDTH affects bucket rendering, revealBallResult is used in collision handler. animateBucketLanding and animatePegHit are stable callbacks defined later
+  }, [BUCKET_WIDTH, revealBallResult]);
 
   /**
    * Creates a ball with server-determined outcome using velocity mapping
