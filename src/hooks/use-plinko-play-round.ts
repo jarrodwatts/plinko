@@ -104,13 +104,11 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
       }
 
       const startTime = performance.now();
-      console.log('⏱️  [CLIENT] Starting request...');
 
       // Timing: Serialize session config
       const serializeStart = performance.now();
       const serializedSession = serializeWithBigInt(session);
       const serializeTime = performance.now() - serializeStart;
-      console.log(`⏱️  [CLIENT] Session serialization: ${serializeTime.toFixed(2)}ms`);
 
       // Timing: Create request body
       const bodyStart = performance.now();
@@ -120,7 +118,6 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
         sessionConfig: serializedSession,
       });
       const bodyTime = performance.now() - bodyStart;
-      console.log(`⏱️  [CLIENT] Request body creation: ${bodyTime.toFixed(2)}ms`);
 
       // Timing: Actual fetch call
       const fetchStart = performance.now();
@@ -132,10 +129,8 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
         body: requestBody,
       });
       const fetchTime = performance.now() - fetchStart;
-      console.log(`⏱️  [CLIENT] Fetch call completed: ${fetchTime.toFixed(2)}ms`);
 
       const totalRequestTime = performance.now() - startTime;
-      console.log(`⏱️  [CLIENT] Total request time: ${totalRequestTime.toFixed(2)}ms`);
 
       if (!response.ok) {
         throw new Error('Failed to start game round');
@@ -164,7 +159,7 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
           for (const line of lines) {
             try {
               const data = deserializeWithBigIntSupport(line);
-              
+
               if (data.type === 'outcome') {
                 outcomeTime = performance.now() - startTime;
                 outcome = {
@@ -175,20 +170,14 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
                 };
                 // Call success immediately for ball drop
                 options?.onSuccess?.(outcome);
-                console.log(`⏱️  [CLIENT] 🎯 RANDOM OUTCOME RECEIVED in ${outcomeTime.toFixed(2)}ms`);
-                console.log('🚀 Outcome received:', outcome);
               } else if (data.type === 'transaction_submitted') {
                 const transactionTime = performance.now() - startTime;
                 hash = data.hash;
                 options?.onTransactionSubmitted?.(hash!, data.gameId);
-                console.log(`⏱️  [CLIENT] 📡 TRANSACTION SUBMITTED in ${transactionTime.toFixed(2)}ms`);
-                console.log('🚀 Transaction submitted:', hash);
               } else if (data.type === 'transaction_confirmed') {
                 const confirmationTime = performance.now() - startTime;
                 receipt = data.receipt;
                 options?.onTransactionConfirmed?.(receipt, data.gameId);
-                console.log(`⏱️  [CLIENT] ✅ TRANSACTION CONFIRMED in ${confirmationTime.toFixed(2)}ms`);
-                console.log('🚀 Transaction confirmed:', receipt);
               } else if (data.type === 'error') {
                 // Create structured error with enhanced information
                 const structuredError = new Error(data.userMessage || data.message) as StructuredError;
@@ -196,7 +185,7 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
                 structuredError.userMessage = data.userMessage;
                 structuredError.retryable = data.retryable;
                 structuredError.suggestions = data.suggestions;
-                
+
                 console.error('Structured error received - throwing error:', {
                   type: data.errorType,
                   message: data.message,
@@ -204,7 +193,7 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
                   retryable: data.retryable,
                   suggestions: data.suggestions
                 });
-                
+
                 throw structuredError;
               }
             } catch (parseError) {
@@ -212,9 +201,9 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
               if (parseError instanceof Error && 'errorType' in parseError) {
                 throw parseError;
               }
-              
+
               console.error('Failed to parse chunk:', line, 'Error:', parseError);
-              
+
               // Try to parse as regular JSON in case it's not using BigInt serialization
               try {
                 const data = JSON.parse(line);
@@ -261,15 +250,14 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
     },
     onError: (error: StructuredError) => {
       console.error('Plinko round failed:', error);
-      
+
       // Check if it's a nonce-related error using structured error type
-      if (error.errorType === 'NONCE_ERROR' || 
-          error.message.toLowerCase().includes('nonce') || 
-          error.message.toLowerCase().includes('replacement transaction underpriced')) {
-        console.log('🔄 Nonce error detected, triggering recovery...');
+      if (error.errorType === 'NONCE_ERROR' ||
+        error.message.toLowerCase().includes('nonce') ||
+        error.message.toLowerCase().includes('replacement transaction underpriced')) {
         options?.onNonceError?.();
       }
-      
+
       options?.onError?.(error);
     },
   });

@@ -130,7 +130,6 @@ export async function POST(request: NextRequest) {
     const now = performance.now();
     const stepDuration = now - stepTime;
     const totalDuration = now - startTime;
-    console.log(`⏱️  [${stepName}] ${stepDuration.toFixed(2)}ms (Total: ${totalDuration.toFixed(2)}ms)`);
     stepTime = now;
   };
 
@@ -180,7 +179,6 @@ export async function POST(request: NextRequest) {
           gameId: gameIdHex
         };
         controller.enqueue(encoder.encode(serializeWithBigIntSupport(outcomeChunk) + '\n'));
-        console.log(`🚀 Chunk 1: Outcome sent immediately with gameId ${outcomeChunk.gameId}`);
 
         // Set up timeout to prevent hanging streams (30 seconds)
         const timeout = setTimeout(() => {
@@ -195,24 +193,19 @@ export async function POST(request: NextRequest) {
         // Now do all the slow blockchain operations in background
         (async () => {
           try {
-            // No nonce validation needed - gameId prevents replay attacks
-            console.log(`✅ Using gameId: ${gameIdHex} for replay protection`);
-
             // Check player balance before proceeding
             try {
-              const balance = await publicClient.getBalance({ 
-                address: playerAddress as `0x${string}` 
+              const balance = await publicClient.getBalance({
+                address: playerAddress as `0x${string}`
               });
-              
+
               if (balance < betAmountWei) {
                 const balanceEth = formatEther(balance);
                 const betEth = formatEther(betAmountWei);
                 throw new Error(`Insufficient balance: ${balanceEth} ETH available, ${betEth} ETH required`);
               }
-              
-              console.log(`✅ Balance check passed: ${formatEther(balance)} ETH available`);
+
             } catch (balanceError) {
-              console.error('Balance check failed:', balanceError);
               throw balanceError;
             }
             logStep('Check player balance');
@@ -262,12 +255,6 @@ export async function POST(request: NextRequest) {
               ...(typeof walletNonce === 'number' && { nonce: walletNonce }),
             };
 
-            if (typeof walletNonce === 'number') {
-              console.log(`🎯 Using explicit wallet nonce: ${walletNonce}`);
-            } else {
-              console.log('🎯 Using auto-nonce (fallback)');
-            }
-
             const hash = await agwSessionClient.writeContract(writeContractParams);
             logStep('🔴 SUBMIT TRANSACTION TO BLOCKCHAIN');
 
@@ -278,9 +265,6 @@ export async function POST(request: NextRequest) {
               gameId: gameIdHex
             };
             controller.enqueue(encoder.encode(serializeWithBigIntSupport(transactionChunk) + '\n'));
-            console.log('🚀 Chunk 2: Transaction hash sent');
-            console.log('Plinko round transaction submitted:', hash);
-            console.log('Should land in multiplier', multiplier / 100, 'x');
 
             // Chunk 3: Wait for transaction receipt
             const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -297,19 +281,15 @@ export async function POST(request: NextRequest) {
               }
             };
             controller.enqueue(encoder.encode(serializeWithBigIntSupport(confirmationChunk) + '\n'));
-            console.log('🚀 Chunk 3: Transaction confirmation sent');
 
             const totalTime = performance.now() - startTime;
-            console.log(`🎯 TOTAL REQUEST TIME: ${totalTime.toFixed(2)}ms`);
 
             clearTimeout(timeout);
             controller.close();
           } catch (error) {
-            console.error('Transaction error:', error);
-
             // Categorize the error for better user experience
             const structuredError = categorizeError(error);
-            
+
             const errorChunk = {
               type: 'error',
               errorType: structuredError.type,
@@ -318,8 +298,7 @@ export async function POST(request: NextRequest) {
               retryable: structuredError.retryable,
               suggestions: structuredError.suggestions
             };
-            
-            console.error('Structured error:', structuredError);
+
             controller.enqueue(encoder.encode(serializeWithBigIntSupport(errorChunk) + '\n'));
             clearTimeout(timeout);
             controller.close();
@@ -338,7 +317,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Plinko play round error:', error);
-
     // Categorize the error for better user experience
     const structuredError = categorizeError(error);
 

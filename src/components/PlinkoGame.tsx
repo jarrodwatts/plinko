@@ -65,8 +65,6 @@ const PlinkoGame = () => {
   // Plinko play round mutation with streaming callbacks
   const submitTransactionMutation = usePlinkoPlayRound({
     onSuccess: (outcome) => {
-      console.log('Ball drop outcome received:', outcome);
-
       // Add to history with 'dropping' status - hide the result until ball lands
       const currentBetAmount = betAmount; // Use state bet amount
 
@@ -88,20 +86,16 @@ const PlinkoGame = () => {
       setTransactionStatus({ stage: 'outcome' });
     },
     onTransactionSubmitted: (hash, gameId) => {
-      console.log('Transaction submitted:', hash, 'for game:', gameId);
       setTransactionStatus(prev => ({ ...prev, stage: 'submitted', hash }));
 
       // Always update game status immediately - UI will handle hiding results until ball lands
       updateGameStatus(gameId, 'submitted', hash);
-      console.log('📡 Transaction submitted for game:', gameId, hash);
     },
     onTransactionConfirmed: (receipt, gameId) => {
-      console.log('Transaction confirmed:', receipt, 'for game:', gameId);
       setTransactionStatus(prev => ({ ...prev, stage: 'confirmed', receipt }));
 
       // Always update game status immediately - UI will handle hiding results until ball lands
       updateGameStatus(gameId, 'confirmed');
-      console.log('✅ Transaction confirmed for game:', gameId);
 
       // Refresh balance after transaction confirmation to show updated balance
       refetchBalance();
@@ -161,15 +155,9 @@ const PlinkoGame = () => {
         };
 
         updateGameStatus(droppingGame.gameId, 'failed', undefined, gameError);
-
-        // Also remove any ball that was created for this failed game
-        // The ball will naturally disappear from physics world due to timeout,
-        // but we ensure game state is properly cleaned up
-        console.log('🧹 Cleaning up failed game state for:', droppingGame.gameId);
       }
     },
     onNonceError: () => {
-      console.log('🔄 Nonce error detected, resetting wallet nonce...');
       resetNonce();
     },
   });
@@ -227,7 +215,6 @@ const PlinkoGame = () => {
       if (availableAmounts.length > 0) {
         const newBetAmount = Math.max(...availableAmounts);
         setBetAmount(newBetAmount);
-        console.log(`🔄 Auto-adjusted bet amount to ${newBetAmount} ETH due to insufficient balance`);
       }
     }
   }, [balanceEth, betAmount, isDemoMode]);
@@ -377,11 +364,6 @@ const PlinkoGame = () => {
           // Use server-validated outcome instead of bucket multiplier
           const ballOutcome = ball.plugin?.ballOutcome;
           if (ballOutcome) {
-            // Log the predetermined server outcome
-            console.log(`Ball scored: ${ballOutcome.multiplier}x`);
-
-            console.log(`Ball ${ballOutcome.gameId} scored: ${ballOutcome.multiplier}x (Target bucket: ${ballOutcome.targetBucket})`);
-
             // Play appropriate landing sound and animate bucket
             if (ballOutcome.multiplier === 11000) { // 110x multiplier
               playBigWin();
@@ -397,11 +379,9 @@ const PlinkoGame = () => {
 
             // Mark that this ball has landed - UI can now show the results
             setBallsLanded(prev => new Set(prev).add(ballOutcome.gameId));
-            console.log('🎯 Ball landed for game:', ballOutcome.gameId, 'Results can now be shown in UI');
           } else {
             // Fallback to bucket multiplier for any balls without outcome data
             const multiplier = parseFloat(bucket.label.split('-')[1]);
-            console.log(`Ball scored: ${multiplier}x`);
           }
 
           // Remove ball
@@ -798,9 +778,6 @@ const PlinkoGame = () => {
    */
   const dropDemoBall = useCallback(() => {
     if (!engineRef.current) return;
-
-    console.log('🎯 Dropping demo ball...');
-
     // Generate demo outcome
     const outcome = generateDemoOutcome();
 
@@ -813,7 +790,6 @@ const PlinkoGame = () => {
     // Play ball drop sound
     playBallDrop();
 
-    console.log(`🎯 Demo ball will land in bucket ${outcome.targetBucket} with ${outcome.multiplier / 100}x multiplier`);
   }, [engineRef, generateDemoOutcome, createBallWithOutcome, playBallDrop]);
 
   /**
@@ -824,7 +800,6 @@ const PlinkoGame = () => {
 
     // Require authentication and wallet nonce to drop balls
     if (!isFullyAuthenticated) {
-      console.log('Authentication or wallet nonce not ready');
       return;
     }
 
@@ -837,8 +812,6 @@ const PlinkoGame = () => {
     }
 
     try {
-      console.log(`⚡ Dropping ball with wallet nonce: ${walletNonce}, bet amount: ${betAmount} ETH`);
-
       // Fire and forget - don't await or block on this
       submitTransactionMutation.mutate({
         betAmount,

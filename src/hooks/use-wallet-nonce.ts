@@ -25,7 +25,7 @@ export function useWalletNonce(): UseWalletNonceReturn {
 
   const { isConnected } = useAccount();
   const { data: authSession } = useAuthSession();
-  
+
   const isAuthenticated = isConnected && authSession?.isAuthenticated;
 
   const { address } = useAccount();
@@ -63,11 +63,9 @@ export function useWalletNonce(): UseWalletNonceReturn {
    * Refresh nonce from blockchain (for error recovery)
    */
   const refreshNonce = useCallback(async (): Promise<void> => {
-    console.log('🔄 Refreshing wallet nonce from blockchain...');
     const nonce = await fetchNonce();
     if (nonce !== null) {
       setCurrentNonce(nonce);
-      console.log(`🔄 Wallet nonce refreshed: ${nonce}`);
     }
   }, [fetchNonce]);
 
@@ -75,7 +73,6 @@ export function useWalletNonce(): UseWalletNonceReturn {
    * Reset nonce after transaction failure (recovery)
    */
   const resetNonce = useCallback(async (): Promise<void> => {
-    console.log('🔄 Resetting wallet nonce due to transaction error...');
     await refreshNonce();
   }, [refreshNonce]);
 
@@ -91,8 +88,7 @@ export function useWalletNonce(): UseWalletNonceReturn {
 
     const nextNonce = currentNonce;
     setCurrentNonce(prev => prev !== null ? prev + 1 : null);
-    console.log(`⚡ Using wallet nonce: ${nextNonce}, next optimistic nonce: ${nextNonce + 1}`);
-    
+
     return nextNonce;
   }, [currentNonce]);
 
@@ -101,7 +97,6 @@ export function useWalletNonce(): UseWalletNonceReturn {
    */
   useEffect(() => {
     if (isAuthenticated && address && currentNonce === null) {
-      console.log('🚀 Initializing wallet nonce...');
       refreshNonce();
     } else if (!isAuthenticated || !address) {
       // Clear nonce when user disconnects

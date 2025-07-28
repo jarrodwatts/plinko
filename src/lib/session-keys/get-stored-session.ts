@@ -40,7 +40,6 @@ export const getStoredSession = async (
     const isValid = await validateSession(abstractClient, address, sessionHash);
 
     if (!isValid) {
-      console.log("Session is no longer valid on-chain, clearing local storage");
       // Clear invalid session
       const { clearSessionConfig } = await import("./session-storage");
       clearSessionConfig();
