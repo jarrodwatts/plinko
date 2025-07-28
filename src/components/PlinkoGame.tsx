@@ -534,131 +534,136 @@ const PlinkoGame = () => {
 
   return (
     <div className="min-h-[calc(100vh-8rem)]">
-
       {/* Main Layout */}
-      <div className="flex flex-col lg:flex-row justify-center items-start min-h-[calc(100vh-8rem)] p-4 md:p-8 gap-8">
-        {/* Game Controls - Left Side Vertical Menu */}
-        <div className="w-full lg:w-64 flex items-start justify-center lg:justify-start order-2 lg:order-1">
-          <div className="bg-black/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 w-full max-w-xs lg:max-w-none flex flex-col" style={{ height: displayHeight }}>
-            <div className="flex flex-col h-full">
-              <h2 className="text-white font-bold text-lg text-center mb-6">Game Controls</h2>
+      <div className="flex flex-col 2xl:flex-row justify-center items-start min-h-[calc(100vh-8rem)]">
+        
+        {/* Top Section: Game + Controls (horizontal on lg/xl, vertical on smaller) */}
+        <div className="w-full flex flex-col lg:flex-row lg:gap-8 lg:justify-center lg:items-start 2xl:contents order-1">
+          
+          {/* Game Controls - Compact for lg/xl, full panel for 2xl */}
+          <div className="w-full lg:w-auto 2xl:w-[400px] 2xl:fixed 2xl:left-0 2xl:top-[60px] 2xl:h-[calc(100vh-60px)] order-2 lg:order-1 2xl:order-1">
+            <div className="bg-black/5 backdrop-blur-sm p-6 lg:rounded-xl lg:border-r lg:border-b 2xl:border-r 2xl:border-b-0 2xl:rounded-none border-white/10 w-full lg:w-64 2xl:w-full h-auto lg:h-[620px] 2xl:h-full flex flex-col">
+              <div className="flex flex-col h-full">
+                <h2 className="text-white font-bold text-lg text-center mb-6 lg:mb-4 2xl:mb-6 hidden lg:block">Game Controls</h2>
 
-              {/* Bet Amount Section */}
-              <div className="space-y-3 mb-6">
-                <h3 className="text-white font-semibold text-sm">Bet Amount</h3>
+                {/* Bet Amount Section */}
+                <div className="space-y-3 mb-6">
+                  <h3 className="text-white font-semibold text-sm text-center">Bet Amount</h3>
+                  <div className="flex flex-row sm:flex-col gap-2 sm:gap-0 sm:space-y-2">
+                    {[0.001, 0.01, 0.1].map((amount) => (
+                      <Button
+                        key={amount}
+                        variant={betAmount === amount ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handlePresetBet(amount)}
+                        className="flex-1 sm:flex-none sm:w-full justify-center text-sm"
+                      >
+                        {amount} ETH
+                      </Button>
+                    ))}
+                  </div>
+                </div>
 
-                {/* Preset Bet Buttons - Vertical Stack */}
-                <div className="space-y-2">
-                  {[0.001, 0.01, 0.1].map((amount) => (
-                    <Button
-                      key={amount}
-                      variant={betAmount === amount ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => handlePresetBet(amount)}
-                      className="w-full justify-center text-sm"
-                    >
-                      {amount} ETH
-                    </Button>
-                  ))}
+                {/* Play Button Section - Shown below bet amount on all screens */}
+                <div className="mb-6">
+                  <ShinyButton
+                    onClick={dropBall}
+                    disabled={!isFullyAuthenticated}
+                    className="w-full"
+                  >
+                    Drop Ball
+                  </ShinyButton>
+                </div>
+
+                {/* Spacer to push content to bottom on 2xl+ */}
+                <div className="flex-1 hidden 2xl:block"></div>
+
+                {/* How to Play Section - Shown on lg/xl and 2xl+ */}
+                <div className="space-y-2 mb-6 hidden lg:block">
+                  <h3 className="text-white font-semibold text-sm">How to Play</h3>
+                  <div className="text-xs text-gray-400 space-y-2">
+                    <p>Drop balls down the peg board to win ETH based on where they land.</p>
+                    <p>Higher payouts are at the edges, lower payouts in the center.</p>
+                    <p>Each ball drop is a blockchain transaction with provably fair randomness.</p>
+                  </div>
+                </div>
+
+                {/* Instructions Section - Hidden on lg/xl, shown on 2xl+ */}
+                <div className="space-y-2 hidden 2xl:block">
+                  <h3 className="text-white font-semibold text-sm">Controls</h3>
+                  <div className="text-sm text-gray-400">
+                    Press <kbd className="px-2 py-1 bg-gray-700 rounded text-xs">SPACE</kbd> to play
+                  </div>
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* Instructions Section */}
-              <div className="space-y-2 mb-6">
-                <h3 className="text-white font-semibold text-sm">Controls</h3>
-                <div className="text-sm text-gray-400">
-                  Press <kbd className="px-2 py-1 bg-gray-700 rounded text-xs">SPACE</kbd> to play
+          {/* Game Container - Center */}
+          <div className="flex items-center justify-center order-1 lg:order-2 2xl:order-2 2xl:mx-[400px] w-full lg:flex-1 pt-8 lg:pt-0 lg:min-h-[620px] 2xl:h-[calc(100vh-280px)] 2xl:pt-0">
+            <div className="relative lg:border lg:border-white/10 lg:rounded-2xl lg:p-4 lg:bg-black/5 lg:backdrop-blur-sm">
+              <div className="overflow-hidden relative rounded-2xl"
+                style={{ width: displayWidth, height: displayHeight }}>
+                <canvas
+                  ref={canvasRef}
+                  width={CANVAS_WIDTH}
+                  height={CANVAS_HEIGHT}
+                  className="block rounded-2xl"
+                  style={{
+                    transform: `scale(${scale})`,
+                    transformOrigin: 'top left',
+                    width: CANVAS_WIDTH,
+                    height: CANVAS_HEIGHT
+                  }}
+                />
+
+                {/* Lottery Ball Machine */}
+                <div className="absolute left-1/2 transform -translate-x-1/2 pointer-events-auto z-10" style={{ top: `${-10 * scale}px` }}>
+                  <LotteryBallMachine scale={scale * 0.75} />
                 </div>
-              </div>
 
-              {/* How to Play Section - Fills remaining space */}
-              <div className="flex-1 space-y-2 mb-6">
-                <h3 className="text-white font-semibold text-sm">How to Play</h3>
-                <div className="text-xs text-gray-400 space-y-2">
-                  <p>Drop balls down the peg board to win ETH based on where they land.</p>
-                  <p>Higher payouts are at the edges, lower payouts in the center.</p>
-                  <p>Each ball drop is a blockchain transaction with provably fair randomness.</p>
+                {/* Enhanced Bucket labels */}
+                <div className="absolute inset-0 pointer-events-none">
+                  {[110, 42, 10, 5, 3, 1.5, 1, 0.5, 0.3, 0.5, 1, 1.5, 3, 5, 10, 42, 110].map((multiplier, index) => {
+                    const bucketSpacing = CANVAS_WIDTH / 17;
+                    const x = (bucketSpacing * index + bucketSpacing / 2) * scale;
+                    const y = 596 * scale;
+
+                    return (
+                      <div
+                        key={index}
+                        className="absolute text-white font-bold text-center"
+                        style={{
+                          left: `${x - (BUCKET_WIDTH * scale) / 2}px`,
+                          top: `${y - (BUCKET_HEIGHT * scale) / 2}px`,
+                          width: `${BUCKET_WIDTH * scale}px`,
+                          height: `${BUCKET_HEIGHT * scale}px`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: isMobile ? '10px' : '12px',
+                          fontFamily: 'system-ui, -apple-system, sans-serif',
+                          fontWeight: '700',
+                          letterSpacing: '0.025em',
+                          color: '#ffffff'
+                        }}
+                      >
+                        {multiplier}x
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-
-              {/* Play Button Section - Fixed at bottom */}
-              <div className="mt-auto">
-                <ShinyButton
-                  onClick={dropBall}
-                  disabled={!isFullyAuthenticated}
-                  className="w-full"
-                >
-                  Play Round
-                </ShinyButton>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Game Container - Center */}
-        <div className="flex items-center justify-center order-1 lg:order-2">
-          <div className="relative">
-            <div className="overflow-hidden relative rounded-2xl"
-              style={{ width: displayWidth, height: displayHeight }}>
-              <canvas
-                ref={canvasRef}
-                width={CANVAS_WIDTH}
-                height={CANVAS_HEIGHT}
-                className="block rounded-2xl"
-                style={{
-                  transform: `scale(${scale})`,
-                  transformOrigin: 'top left',
-                  width: CANVAS_WIDTH,
-                  height: CANVAS_HEIGHT
-                }}
-              />
-
-              {/* Lottery Ball Machine */}
-              <div className="absolute left-1/2 transform -translate-x-1/2 pointer-events-auto z-10" style={{ top: `${-10 * scale}px` }}>
-                <LotteryBallMachine scale={scale * 0.75} />
-              </div>
-
-              {/* Enhanced Bucket labels */}
-              <div className="absolute inset-0 pointer-events-none">
-                {[110, 42, 10, 5, 3, 1.5, 1, 0.5, 0.3, 0.5, 1, 1.5, 3, 5, 10, 42, 110].map((multiplier, index) => {
-                  const bucketSpacing = CANVAS_WIDTH / 17;
-                  const x = (bucketSpacing * index + bucketSpacing / 2) * scale;
-                  const y = 596 * scale;
-
-                  return (
-                    <div
-                      key={index}
-                      className="absolute text-white font-bold text-center"
-                      style={{
-                        left: `${x - (BUCKET_WIDTH * scale) / 2}px`,
-                        top: `${y - (BUCKET_HEIGHT * scale) / 2}px`,
-                        width: `${BUCKET_WIDTH * scale}px`,
-                        height: `${BUCKET_HEIGHT * scale}px`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: isMobile ? '10px' : '12px',
-                        fontFamily: 'system-ui, -apple-system, sans-serif',
-                        fontWeight: '700',
-                        letterSpacing: '0.025em',
-                        color: '#ffffff'
-                      }}
-                    >
-                      {multiplier}x
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* History Table - Right Side on Desktop, Below Game on Mobile */}
-        <div className="w-full lg:w-80 xl:w-96 flex items-center justify-center order-3">
+        {/* History Table - Below everything on sm/md/lg/xl, right panel on 2xl */}
+        <div className="w-full 2xl:w-[400px] 2xl:fixed 2xl:right-0 2xl:top-[60px] 2xl:h-[calc(100vh-60px)] order-2 mt-8 lg:mt-12 2xl:mt-0">
           <GameHistoryTable
             gameHistory={gameHistory}
             isLoading={historyLoading}
-            height={displayHeight}
+            height={null}
             ballsLanded={ballsLanded}
           />
         </div>

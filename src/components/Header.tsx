@@ -17,12 +17,12 @@ const Header = () => {
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-50 w-full h-[60px] px-4 sm:px-8 bg-background overflow-hidden"
+      className="fixed top-0 left-0 right-0 z-50 w-full h-[60px] px-4 sm:px-8 lg:px-24 bg-background overflow-hidden"
       style={{
         boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
       }}
     >
-      <nav className="relative z-10 flex items-center justify-between h-full max-w-[95rem] mx-auto">
+      <nav className="relative z-10 flex items-center justify-between h-full w-full">
         <div className="flex items-center gap-6">
           <Link href="/">
             <Image

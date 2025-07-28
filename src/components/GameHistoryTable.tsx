@@ -16,13 +16,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface GameHistoryTableProps {
   gameHistory: GameResult[];
   isLoading: boolean;
-  height?: number;
+  height?: number | null;
   ballsLanded: Set<string>;
 }
 
 export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }: GameHistoryTableProps) {
   const formatCurrency = (amount: number) => {
-    return `${amount.toFixed(4)} ETH`;
+    return amount.toFixed(4);
   };
 
   const formatProfitLoss = (amount: number) => {
@@ -33,17 +33,17 @@ export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }
   const getStatusDisplay = (status: GameStatus) => {
     switch (status) {
       case 'dropping':
-        return { icon: '🎯', text: 'Dropping' };
+        return 'Dropping';
       case 'pending':
-        return { icon: '🟡', text: 'Pending' };
+        return 'Pending';
       case 'submitted':
-        return { icon: '🔵', text: 'Submitted' };
+        return 'Submitted';
       case 'confirmed':
-        return { icon: '🟢', text: 'Confirmed' };
+        return 'Confirmed';
       case 'failed':
-        return { icon: '🔴', text: 'Failed' };
+        return 'Failed';
       default:
-        return { icon: '⚪', text: 'Unknown' };
+        return 'Unknown';
     }
   };
 
@@ -81,13 +81,22 @@ export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }
   };
 
   const cardStyle = height ? { height: `${height}px` } : {};
-  const contentHeight = height ? height - 80 : 384; // Subtract header height (approximately 80px)
+  const contentHeight = height ? height - 80 : 'calc(100vh - 140px)'; // Subtract header (60px) + card header (80px) for full height
+
+  const cardClasses = height === null 
+    ? "w-full h-full flex flex-col bg-black/5 backdrop-blur-sm border-l border-white/10 rounded-none border-t-0"
+    : "w-full flex flex-col bg-black/5 backdrop-blur-sm border-white/10 lg:border-t lg:rounded-xl 2xl:border-t-0 2xl:rounded-none";
+  
+  // For mid-size screens (lg/xl), we want top border even when height is null
+  const finalCardClasses = height === null 
+    ? "w-full h-full flex flex-col bg-black/5 backdrop-blur-sm border-l border-white/10 rounded-none border-t-0 lg:border-t lg:rounded-xl 2xl:border-t-0 2xl:rounded-none"
+    : cardClasses;
 
   if (isLoading) {
     return (
-      <Card className="w-full flex flex-col" style={cardStyle}>
+      <Card className={finalCardClasses} style={cardStyle}>
         <CardHeader>
-          <CardTitle>Game History</CardTitle>
+          <CardTitle className="text-white font-bold text-lg text-center">Game History</CardTitle>
         </CardHeader>
         <CardContent className="flex-1 flex items-center justify-center">
           <div className="text-sm text-muted-foreground">Loading history...</div>
@@ -98,9 +107,9 @@ export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }
 
   if (gameHistory.length === 0) {
     return (
-      <Card className="w-full flex flex-col" style={cardStyle}>
+      <Card className={finalCardClasses} style={cardStyle}>
         <CardHeader>
-          <CardTitle>Game History</CardTitle>
+          <CardTitle className="text-white font-bold text-lg text-center">Game History</CardTitle>
         </CardHeader>
         <CardContent className="flex-1 flex items-center justify-center">
           <div className="text-sm text-muted-foreground">No games played yet</div>
@@ -110,15 +119,15 @@ export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }
   }
 
   return (
-    <Card className="w-full flex flex-col" style={cardStyle}>
+    <Card className={finalCardClasses} style={cardStyle}>
       <CardHeader>
-        <CardTitle>Game History</CardTitle>
+        <CardTitle className="text-white font-bold text-lg text-center">Game History</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden">
         <div 
           className="overflow-y-auto game-history-scroll" 
           style={{ 
-            height: `${contentHeight}px`,
+            height: typeof contentHeight === 'string' ? contentHeight : `${contentHeight}px`,
             // Firefox scrollbar
             scrollbarWidth: 'thin',
             scrollbarColor: 'rgba(156, 163, 175, 0.5) transparent',
@@ -127,7 +136,7 @@ export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }
           <Table>
             <TableHeader>
               <TableRow className="border-b-0">
-                <TableHead className="w-16">Bet</TableHead>
+                <TableHead className="w-16">Bet (ETH)</TableHead>
                 <TableHead className="w-12">Multi</TableHead>
                 <TableHead className="w-16">P/L</TableHead>
                 <TableHead className="w-16">Status</TableHead>
@@ -138,7 +147,7 @@ export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }
                 {gameHistory.map((game, index) => {
                   // Show "dropping" status until ball has landed, then show actual status
                   const displayStatus = ballsLanded.has(game.gameId) ? game.status : 'dropping';
-                  const statusDisplay = getStatusDisplay(displayStatus);
+                  const statusText = getStatusDisplay(displayStatus);
                   return (
                     <motion.tr
                       key={game.gameId}
@@ -188,7 +197,13 @@ export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }
                           transition={{ delay: 0.15 + index * 0.05, duration: 0.2 }}
                           className="inline-block"
                         >
-                          {!ballsLanded.has(game.gameId) ? '??x' : `${game.multiplier}x`}
+                          {!ballsLanded.has(game.gameId) ? (
+                            <motion.div
+                              animate={{ opacity: [0.3, 1, 0.3] }}
+                              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                              className="w-6 h-3 bg-gradient-to-r from-orange-400 to-orange-600 rounded-sm"
+                            />
+                          ) : `${game.multiplier}x`}
                         </motion.span>
                       </TableCell>
                       <TableCell className={cn(
@@ -205,49 +220,26 @@ export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }
                           transition={{ delay: 0.2 + index * 0.05, duration: 0.2 }}
                           className="inline-block"
                         >
-                          {!ballsLanded.has(game.gameId) ? '???' : formatProfitLoss(game.profitLoss)}
+                          {!ballsLanded.has(game.gameId) ? (
+                            <motion.div
+                              animate={{ opacity: [0.3, 1, 0.3] }}
+                              transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                              className="w-8 h-3 bg-gradient-to-r from-gray-400 to-gray-600 rounded-sm"
+                            />
+                          ) : formatProfitLoss(game.profitLoss)}
                         </motion.span>
                       </TableCell>
                       <TableCell className="text-xs">
                         <motion.span 
-                          className="flex items-center gap-1"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ delay: 0.25 + index * 0.05, duration: 0.2 }}
-                        >
-                          <motion.span
-                            animate={{
-                              rotate: displayStatus === 'pending' ? [0, 360] : 0,
-                              scale: displayStatus === 'pending' ? [1, 1.1, 1] : 1,
-                              y: displayStatus === 'dropping' ? [0, -3, 0] : 0
-                            }}
-                            transition={{
-                              rotate: {
-                                duration: 2,
-                                repeat: displayStatus === 'pending' ? Infinity : 0,
-                                ease: "linear"
-                              },
-                              scale: {
-                                duration: 1,
-                                repeat: displayStatus === 'pending' ? Infinity : 0,
-                                repeatType: "reverse"
-                              },
-                              y: {
-                                duration: 0.8,
-                                repeat: displayStatus === 'dropping' ? Infinity : 0,
-                                repeatType: "reverse",
-                                ease: "easeInOut"
-                              }
-                            }}
-                          >
-                            {statusDisplay.icon}
-                          </motion.span>
-                          <span className={cn(
+                          className={cn(
                             "text-xs transition-colors duration-200",
                             getStatusColor(displayStatus)
-                          )}>
-                            {statusDisplay.text}
-                          </span>
+                          )}
+                        >
+                          {statusText}
                         </motion.span>
                       </TableCell>
                     </motion.tr>
