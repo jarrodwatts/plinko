@@ -8,6 +8,7 @@ import { useAbstractSession } from '@/hooks/use-abstract-session';
 import { usePlinkoPlayRound } from '@/hooks/use-plinko-play-round';
 import { useWalletNonce } from '@/hooks/use-wallet-nonce';
 import { useGameHistory } from '@/hooks/use-game-history';
+import { useAudio } from '@/hooks/use-audio';
 import { GameHistoryTable } from '@/components/GameHistoryTable';
 import LotteryBallMachine from '@/components/LotteryBallMachine';
 import { ShinyButton } from '@/components/ui/shiny-button';
@@ -56,6 +57,9 @@ const PlinkoGame = () => {
 
       // Create ball immediately with the outcome from server (include betAmount for later use)
       createBallWithOutcome({ ...outcome, betAmount: currentBetAmount });
+      
+      // Play ball drop sound
+      playBallDrop();
 
       addGameResult({
         gameId: outcome.gameId,
@@ -138,6 +142,9 @@ const PlinkoGame = () => {
 
   // Game history management
   const { gameHistory, addGameResult, updateGameStatus, revealBallResult, isLoading: historyLoading } = useGameHistory();
+
+  // Audio management
+  const { playBallDrop, playBounce, playLand, playBigWin } = useAudio();
 
   // Check if user is fully authenticated and wallet nonce is ready
   const isFullyAuthenticated = isConnected && authSession?.isAuthenticated && session && currentNonce !== null;
@@ -237,6 +244,7 @@ const PlinkoGame = () => {
 
         let ball = null;
         let bucket = null;
+        let peg = null;
 
         // Identify ball and bucket
         if (bodyA.label?.startsWith('bucket-') && ballsRef.current.includes(bodyB)) {
@@ -245,6 +253,20 @@ const PlinkoGame = () => {
         } else if (bodyB.label?.startsWith('bucket-') && ballsRef.current.includes(bodyA)) {
           ball = bodyA;
           bucket = bodyB;
+        }
+        
+        // Identify ball and peg collisions for bounce sounds
+        if (bodyA.label === 'peg' && ballsRef.current.includes(bodyB)) {
+          ball = bodyB;
+          peg = bodyA;
+        } else if (bodyB.label === 'peg' && ballsRef.current.includes(bodyA)) {
+          ball = bodyA;
+          peg = bodyB;
+        }
+
+        // Handle peg bounce sounds
+        if (ball && peg) {
+          playBounce();
         }
 
         if (ball && bucket) {
@@ -255,6 +277,13 @@ const PlinkoGame = () => {
             console.log(`Ball scored: ${ballOutcome.multiplier}x`);
 
             console.log(`Ball ${ballOutcome.gameId} scored: ${ballOutcome.multiplier}x (Target bucket: ${ballOutcome.targetBucket})`);
+
+            // Play appropriate landing sound
+            if (ballOutcome.multiplier === 11000) { // 110x multiplier
+              playBigWin();
+            } else {
+              playLand();
+            }
 
             // Reveal the result in the GameHistoryTable now that the ball has landed
             const payout = ballOutcome.betAmount * ballOutcome.multiplier / 100;
@@ -348,7 +377,8 @@ const PlinkoGame = () => {
           collisionFilter: {
             category: 0x0001, // Peg category - balls can collide with this
             mask: 0xFFFF      // Pegs can collide with everything
-          }
+          },
+          label: 'peg' // Add label to identify pegs
         });
         pegs.push(peg);
       }
@@ -668,7 +698,7 @@ const PlinkoGame = () => {
         </div>
 
         {/* History Table - Below everything on sm/md/lg/xl, right panel on 2xl */}
-        <div className="w-full 2xl:w-[400px] 2xl:fixed 2xl:right-0 2xl:top-[60px] 2xl:h-[calc(100vh-60px)] order-2 mt-8 lg:mt-12 2xl:mt-0">
+        <div className="w-full 2xl:w-[400px] 2xl:fixed 2xl:right-0 2xl:top-[60px] 2xl:h-[calc(100vh-60px)] 2xl:border-t 2xl:border-white/10 order-2 mt-8 lg:mt-12 2xl:mt-0">
           <GameHistoryTable
             gameHistory={gameHistory}
             isLoading={historyLoading}
