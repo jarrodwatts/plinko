@@ -10,8 +10,11 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AlertCircle } from 'lucide-react';
+import { useState } from 'react';
 
 interface GameHistoryTableProps {
   gameHistory: GameResult[];
@@ -21,6 +24,19 @@ interface GameHistoryTableProps {
 }
 
 export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }: GameHistoryTableProps) {
+  const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set());
+  
+  const toggleErrorExpansion = (gameId: string) => {
+    setExpandedErrors(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(gameId)) {
+        newSet.delete(gameId);
+      } else {
+        newSet.add(gameId);
+      }
+      return newSet;
+    });
+  };
   const formatCurrency = (amount: number) => {
     return amount.toFixed(4);
   };
@@ -230,17 +246,51 @@ export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }
                         </motion.span>
                       </TableCell>
                       <TableCell className="text-xs">
-                        <motion.span 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.25 + index * 0.05, duration: 0.2 }}
-                          className={cn(
-                            "text-xs transition-colors duration-200",
-                            getStatusColor(displayStatus)
+                        <div className="flex items-center gap-2">
+                          <motion.span 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.25 + index * 0.05, duration: 0.2 }}
+                            className={cn(
+                              "text-xs transition-colors duration-200",
+                              getStatusColor(displayStatus)
+                            )}
+                          >
+                            {statusText}
+                          </motion.span>
+                          {game.status === 'failed' && game.error && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleErrorExpansion(game.gameId)}
+                              className="h-4 w-4 p-0 text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                            >
+                              <AlertCircle className="h-3 w-3" />
+                            </Button>
                           )}
-                        >
-                          {statusText}
-                        </motion.span>
+                        </div>
+                        {game.status === 'failed' && game.error && expandedErrors.has(game.gameId) && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded text-xs"
+                          >
+                            <div className="font-medium text-red-400 mb-1">
+                              {game.error.userMessage || game.error.message}
+                            </div>
+                            {game.error.suggestions && game.error.suggestions.length > 0 && (
+                              <div className="text-red-300 text-xs">
+                                <strong>Suggestions:</strong> {game.error.suggestions.join(', ')}
+                              </div>
+                            )}
+                            {game.error.retryable && (
+                              <div className="text-yellow-400 text-xs mt-1">
+                                ⚠️ This error can be retried
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
                       </TableCell>
                     </motion.tr>
                   );

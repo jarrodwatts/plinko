@@ -14,17 +14,18 @@ const LotteryBallMachine = ({ scale = 1 }: LotteryBallMachineProps) => {
   const balls = Array.from({ length: 12 }, (_, i) => {
     // Create a semi-circle distribution at the bottom
     const angle = (Math.PI / 8) + (i * Math.PI * 0.75) / 11; // Spread across bottom arc
-    const radius = 25 + Math.random() * 15; // Random depth within circle
+    // Use deterministic values based on index to avoid hydration mismatch
+    const radius = 25 + ((i * 7) % 15); // Deterministic depth within circle
     const centerX = 50;
     const centerY = 50;
     
     return {
       id: i,
-      // Convert polar to cartesian coordinates
-      settledX: centerX + Math.cos(angle) * radius,
-      settledY: centerY + Math.sin(angle) * radius * 0.7 + 10, // Bias towards bottom
-      animationDelay: Math.random() * 3,
-      vibrateIntensity: 0.5 + Math.random() * 0.5,
+      // Convert polar to cartesian coordinates - round to avoid precision differences
+      settledX: Math.round((centerX + Math.cos(angle) * radius) * 100) / 100,
+      settledY: Math.round((centerY + Math.sin(angle) * radius * 0.7 + 10) * 100) / 100,
+      animationDelay: Math.round((i * 0.25) % 3 * 100) / 100, // Deterministic delay
+      vibrateIntensity: Math.round((0.5 + ((i * 0.1) % 0.5)) * 100) / 100, // Deterministic intensity
     };
   });
 
@@ -65,7 +66,7 @@ const LotteryBallMachine = ({ scale = 1 }: LotteryBallMachineProps) => {
                 border: `1px solid ${PRIMARY_DARK}`,
                 boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
                 animationDelay: `${ball.animationDelay}s`,
-                '--vibrate-intensity': ball.vibrateIntensity,
+                '--vibrate-intensity': ball.vibrateIntensity.toString(),
                 transform: 'translate(-50%, -50%)',
               } as React.CSSProperties}
             />

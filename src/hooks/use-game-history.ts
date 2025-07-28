@@ -4,6 +4,14 @@ import { useState, useCallback, useEffect } from 'react';
 
 export type GameStatus = 'dropping' | 'pending' | 'submitted' | 'confirmed' | 'failed';
 
+export interface GameError {
+  errorType?: string;
+  message: string;
+  userMessage?: string;
+  retryable?: boolean;
+  suggestions?: string[];
+}
+
 export interface GameResult {
   gameId: string;
   betAmount: number;
@@ -13,6 +21,7 @@ export interface GameResult {
   timestamp: Date;
   status: GameStatus;
   hash?: string;
+  error?: GameError;
 }
 
 const STORAGE_KEY = 'plinko-game-history';
@@ -77,7 +86,7 @@ export function useGameHistory() {
   }, [saveToStorage]);
 
   // Update game status by gameId with status progression validation
-  const updateGameStatus = useCallback((gameId: string, status: GameStatus, hash?: string) => {
+  const updateGameStatus = useCallback((gameId: string, status: GameStatus, hash?: string, error?: GameError) => {
     setGameHistory(prev => {
       const newHistory = prev.map(game => {
         if (game.gameId !== gameId) return game;
@@ -101,7 +110,12 @@ export function useGameHistory() {
 
         // Only update if the transition is valid
         if (allowedTransitions.includes(status)) {
-          return { ...game, status, ...(hash && { hash }) };
+          return { 
+            ...game, 
+            status, 
+            ...(hash && { hash }),
+            ...(error && { error })
+          };
         } else {
           console.warn(`Invalid status transition from ${currentStatus} to ${status} for game ${gameId}`);
           return game; // Keep current status

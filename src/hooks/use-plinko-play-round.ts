@@ -35,7 +35,11 @@ interface ConfirmationChunk extends StreamChunk {
 
 interface ErrorChunk extends StreamChunk {
   type: 'error';
+  errorType?: 'INSUFFICIENT_BALANCE' | 'GAS_ESTIMATION_FAILED' | 'NONCE_ERROR' | 'NETWORK_ERROR' | 'CONTRACT_ERROR' | 'SESSION_ERROR' | 'VALIDATION_ERROR' | 'UNKNOWN_ERROR';
   message: string;
+  userMessage?: string;
+  retryable?: boolean;
+  suggestions?: string[];
 }
 
 type PlinkoStreamChunk = OutcomeChunk | TransactionChunk | ConfirmationChunk | ErrorChunk;
@@ -71,11 +75,18 @@ interface PlayRoundResponse extends PlayRoundOutcome {
   };
 }
 
+interface StructuredError extends Error {
+  errorType?: string;
+  userMessage?: string;
+  retryable?: boolean;
+  suggestions?: string[];
+}
+
 interface UsePlinkoPlayRoundOptions {
   onSuccess?: (data: PlayRoundOutcome) => void;
   onTransactionSubmitted?: (hash: string, gameId: string) => void;
   onTransactionConfirmed?: (receipt: ConfirmationChunk['receipt'], gameId: string) => void;
-  onError?: (error: Error) => void;
+  onError?: (error: StructuredError) => void;
   onNonceError?: () => void;
 }
 
@@ -179,21 +190,58 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
                 console.log(`⏱️  [CLIENT] ✅ TRANSACTION CONFIRMED in ${confirmationTime.toFixed(2)}ms`);
                 console.log('🚀 Transaction confirmed:', receipt);
               } else if (data.type === 'error') {
-                throw new Error(data.message);
+                // Create structured error with enhanced information
+                const structuredError = new Error(data.userMessage || data.message) as StructuredError;
+                structuredError.errorType = data.errorType;
+                structuredError.userMessage = data.userMessage;
+                structuredError.retryable = data.retryable;
+                structuredError.suggestions = data.suggestions;
+                
+                console.error('Structured error received - throwing error:', {
+                  type: data.errorType,
+                  message: data.message,
+                  userMessage: data.userMessage,
+                  retryable: data.retryable,
+                  suggestions: data.suggestions
+                });
+                
+                throw structuredError;
               }
-            } catch {
-              // Check if the unparseable chunk contains nonce error
-              if (line.toLowerCase().includes('nonce too low')) {
-                console.error('🚨 Critical nonce error detected in unparseable chunk:', line);
-                // Create a synthetic error chunk to be handled by existing error flow
-                const syntheticErrorChunk: ErrorChunk = {
-                  type: 'error',
-                  message: `Nonce too low: ${line}`
-                };
-                // Process it through the normal error handling
-                throw new Error(syntheticErrorChunk.message);
+            } catch (parseError) {
+              // If the error thrown above is a StructuredError, re-throw it
+              if (parseError instanceof Error && 'errorType' in parseError) {
+                throw parseError;
               }
-              console.warn('Failed to parse chunk:', line);
+              
+              console.error('Failed to parse chunk:', line, 'Error:', parseError);
+              
+              // Try to parse as regular JSON in case it's not using BigInt serialization
+              try {
+                const data = JSON.parse(line);
+                if (data.type === 'error') {
+                  // Handle the error even if it didn't use BigInt serialization
+                  const structuredError = new Error(data.userMessage || data.message) as StructuredError;
+                  structuredError.errorType = data.errorType;
+                  structuredError.userMessage = data.userMessage;
+                  structuredError.retryable = data.retryable;
+                  structuredError.suggestions = data.suggestions;
+                  console.error('Structured error from fallback JSON parse - throwing error:', data);
+                  throw structuredError;
+                }
+              } catch (jsonError) {
+                // Check if the unparseable chunk contains nonce error
+                if (line.toLowerCase().includes('nonce too low')) {
+                  console.error('🚨 Critical nonce error detected in unparseable chunk:', line);
+                  // Create a synthetic structured error
+                  const syntheticError = new Error('Transaction ordering issue detected') as StructuredError;
+                  syntheticError.errorType = 'NONCE_ERROR';
+                  syntheticError.userMessage = 'Transaction ordering issue detected';
+                  syntheticError.retryable = true;
+                  syntheticError.suggestions = ['Please refresh the page', 'Try again after refreshing'];
+                  throw syntheticError;
+                }
+                console.warn('Failed to parse chunk as JSON:', line);
+              }
             }
           }
         }
@@ -211,12 +259,13 @@ export function usePlinkoPlayRound(options?: UsePlinkoPlayRoundOptions) {
         receipt
       };
     },
-    onError: (error: Error) => {
+    onError: (error: StructuredError) => {
       console.error('Plinko round failed:', error);
       
-      // Check if it's a nonce-related error
-      const errorMessage = error.message.toLowerCase();
-      if (errorMessage.includes('nonce') || errorMessage.includes('replacement transaction underpriced')) {
+      // Check if it's a nonce-related error using structured error type
+      if (error.errorType === 'NONCE_ERROR' || 
+          error.message.toLowerCase().includes('nonce') || 
+          error.message.toLowerCase().includes('replacement transaction underpriced')) {
         console.log('🔄 Nonce error detected, triggering recovery...');
         options?.onNonceError?.();
       }

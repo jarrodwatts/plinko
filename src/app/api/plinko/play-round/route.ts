@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseEther, keccak256, encodePacked, type Address, type Hex } from 'viem';
+import { parseEther, keccak256, encodePacked, type Address, type Hex, formatEther } from 'viem';
 import { PrivyClient } from '@privy-io/server-auth';
 import { createViemAccount } from '@privy-io/server-auth/viem';
 import { createSessionClient } from '@abstract-foundation/agw-client/sessions';
@@ -23,6 +23,104 @@ function serializeWithBigIntSupport(obj: Record<string, unknown>): string {
 import { randomBytes } from 'crypto';
 import { ironOptions } from '@/config/iron-options';
 import { CONTAINER_PROBABILITIES, PRECISION } from '@/config/probabilities';
+
+// Error types for structured error handling
+type ErrorType = 'INSUFFICIENT_BALANCE' | 'GAS_ESTIMATION_FAILED' | 'NONCE_ERROR' | 'NETWORK_ERROR' | 'CONTRACT_ERROR' | 'SESSION_ERROR' | 'VALIDATION_ERROR' | 'UNKNOWN_ERROR';
+
+interface StructuredError {
+  type: ErrorType;
+  message: string;
+  userMessage: string;
+  retryable: boolean;
+  suggestions?: string[];
+}
+
+// Type guard to check if error has message property
+function isErrorWithMessage(error: unknown): error is { message: string; shortMessage?: string } {
+  return typeof error === 'object' && error !== null && 'message' in error;
+}
+
+// Helper function to categorize and structure errors
+function categorizeError(error: unknown): StructuredError {
+  const errorMessage = isErrorWithMessage(error) ? error.message.toLowerCase() : '';
+  const shortMessage = isErrorWithMessage(error) && error.shortMessage ? error.shortMessage.toLowerCase() : '';
+  const combinedMessage = `${errorMessage} ${shortMessage}`;
+
+  // Insufficient balance errors
+  if (combinedMessage.includes('insufficient balance') || combinedMessage.includes('insufficient funds')) {
+    return {
+      type: 'INSUFFICIENT_BALANCE',
+      message: isErrorWithMessage(error) ? error.message : 'Insufficient balance',
+      userMessage: 'You don\'t have enough ETH to place this bet',
+      retryable: false,
+      suggestions: ['Add more ETH to your wallet', 'Try a smaller bet amount']
+    };
+  }
+
+  // Gas estimation errors
+  if (combinedMessage.includes('gas') && (combinedMessage.includes('estimation') || combinedMessage.includes('limit'))) {
+    return {
+      type: 'GAS_ESTIMATION_FAILED',
+      message: isErrorWithMessage(error) ? error.message : 'Gas estimation failed',
+      userMessage: 'Network is busy. Please try again in a moment',
+      retryable: true,
+      suggestions: ['Wait a moment and try again', 'Check your network connection']
+    };
+  }
+
+  // Nonce errors
+  if (combinedMessage.includes('nonce') || combinedMessage.includes('replacement transaction underpriced')) {
+    return {
+      type: 'NONCE_ERROR',
+      message: isErrorWithMessage(error) ? error.message : 'Transaction nonce error',
+      userMessage: 'Transaction ordering issue detected',
+      retryable: true,
+      suggestions: ['Please refresh the page', 'Try again after refreshing']
+    };
+  }
+
+  // Network/connection errors
+  if (combinedMessage.includes('network') || combinedMessage.includes('connection') || combinedMessage.includes('timeout')) {
+    return {
+      type: 'NETWORK_ERROR',
+      message: isErrorWithMessage(error) ? error.message : 'Network error',
+      userMessage: 'Network connection issue',
+      retryable: true,
+      suggestions: ['Check your internet connection', 'Try again in a moment']
+    };
+  }
+
+  // Contract-specific errors
+  if (combinedMessage.includes('contract') || combinedMessage.includes('execution reverted')) {
+    return {
+      type: 'CONTRACT_ERROR',
+      message: isErrorWithMessage(error) ? error.message : 'Contract error',
+      userMessage: 'Smart contract rejected the transaction',
+      retryable: false,
+      suggestions: ['Check your bet amount and try again', 'Contact support if this persists']
+    };
+  }
+
+  // Session/authentication errors
+  if (combinedMessage.includes('session') || combinedMessage.includes('unauthorized') || combinedMessage.includes('authentication')) {
+    return {
+      type: 'SESSION_ERROR',
+      message: isErrorWithMessage(error) ? error.message : 'Session error',
+      userMessage: 'Your session has expired',
+      retryable: false,
+      suggestions: ['Please refresh the page and reconnect your wallet']
+    };
+  }
+
+  // Default to unknown error
+  return {
+    type: 'UNKNOWN_ERROR',
+    message: isErrorWithMessage(error) ? error.message : 'Unknown error occurred',
+    userMessage: 'Something went wrong. Please try again',
+    retryable: true,
+    suggestions: ['Try again in a moment', 'Contact support if this persists']
+  };
+}
 
 export async function POST(request: NextRequest) {
   const startTime = performance.now();
@@ -99,6 +197,25 @@ export async function POST(request: NextRequest) {
           try {
             // No nonce validation needed - gameId prevents replay attacks
             console.log(`✅ Using gameId: ${gameIdHex} for replay protection`);
+
+            // Check player balance before proceeding
+            try {
+              const balance = await publicClient.getBalance({ 
+                address: playerAddress as `0x${string}` 
+              });
+              
+              if (balance < betAmountWei) {
+                const balanceEth = formatEther(balance);
+                const betEth = formatEther(betAmountWei);
+                throw new Error(`Insufficient balance: ${balanceEth} ETH available, ${betEth} ETH required`);
+              }
+              
+              console.log(`✅ Balance check passed: ${formatEther(balance)} ETH available`);
+            } catch (balanceError) {
+              console.error('Balance check failed:', balanceError);
+              throw balanceError;
+            }
+            logStep('Check player balance');
 
             // Create message hash for signing (proves randomness authenticity)
             const messageHash = keccak256(
@@ -190,10 +307,19 @@ export async function POST(request: NextRequest) {
           } catch (error) {
             console.error('Transaction error:', error);
 
+            // Categorize the error for better user experience
+            const structuredError = categorizeError(error);
+            
             const errorChunk = {
               type: 'error',
-              message: error instanceof Error ? error.message : 'Transaction failed'
+              errorType: structuredError.type,
+              message: structuredError.message,
+              userMessage: structuredError.userMessage,
+              retryable: structuredError.retryable,
+              suggestions: structuredError.suggestions
             };
+            
+            console.error('Structured error:', structuredError);
             controller.enqueue(encoder.encode(serializeWithBigIntSupport(errorChunk) + '\n'));
             clearTimeout(timeout);
             controller.close();
@@ -213,13 +339,20 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Plinko play round error:', error);
 
+    // Categorize the error for better user experience
+    const structuredError = categorizeError(error);
+
     // Return streaming error response
     const encoder = new TextEncoder();
     const errorStream = new ReadableStream({
       start(controller) {
         const errorChunk = {
           type: 'error',
-          message: error instanceof Error ? error.message : 'Internal server error'
+          errorType: structuredError.type,
+          message: structuredError.message,
+          userMessage: structuredError.userMessage,
+          retryable: structuredError.retryable,
+          suggestions: structuredError.suggestions
         };
         controller.enqueue(encoder.encode(serializeWithBigIntSupport(errorChunk) + '\n'));
         controller.close();

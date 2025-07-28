@@ -2,20 +2,28 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import Matter from 'matter-js';
+import Image from 'next/image';
 import { useAccount } from 'wagmi';
 import { useAuthSession } from '@/hooks/use-auth-session';
 import { useAbstractSession } from '@/hooks/use-abstract-session';
 import { usePlinkoPlayRound } from '@/hooks/use-plinko-play-round';
+interface StructuredError extends Error {
+  errorType?: string;
+  userMessage?: string;
+  retryable?: boolean;
+  suggestions?: string[];
+}
 import { useWalletNonce } from '@/hooks/use-wallet-nonce';
 import { useGameHistory } from '@/hooks/use-game-history';
 import { useAudio } from '@/hooks/use-audio';
+import { useEthBalance } from '@/hooks/use-eth-balance';
 import { GameHistoryTable } from '@/components/GameHistoryTable';
 import LotteryBallMachine from '@/components/LotteryBallMachine';
 import { ShinyButton } from '@/components/ui/shiny-button';
 import { PlayerCard } from '@/components/ui/PlayerCard';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
+import SignInModal from '@/components/auth/SignInModal';
 import { PRIMARY_COLOR, PRIMARY_DARK } from '@/lib/colors';
 import { toast } from 'sonner';
 import { CONTAINER_PROBABILITIES, PRECISION } from '@/config/probabilities';
@@ -64,7 +72,7 @@ const PlinkoGame = () => {
 
       // Create ball immediately with the outcome from server (include betAmount for later use)
       createBallWithOutcome({ ...outcome, betAmount: currentBetAmount });
-      
+
       // Play ball drop sound
       playBallDrop();
 
@@ -94,18 +102,70 @@ const PlinkoGame = () => {
       // Always update game status immediately - UI will handle hiding results until ball lands
       updateGameStatus(gameId, 'confirmed');
       console.log('✅ Transaction confirmed for game:', gameId);
+
+      // Refresh balance after transaction confirmation to show updated balance
+      refetchBalance();
     },
-    onError: (error) => {
+    onError: (error: StructuredError) => {
       console.error('Ball drop transaction failed:', error);
       setTransactionStatus({ stage: 'idle', error: error.message });
-      
-      // Show error toast
-      toast.error(`Transaction failed: ${error.message}`);
+
+      // Enhanced error display with user-friendly messages and suggestions
+      const displayMessage = error.userMessage || error.message || 'Transaction failed';
+
+      // Create enhanced error toast with suggestions
+      if (error.suggestions && error.suggestions.length > 0) {
+        const suggestionText = error.suggestions.join(' or ');
+        toast.error(displayMessage, {
+          description: `Suggestion: ${suggestionText}`,
+          duration: error.retryable ? 5000 : 8000, // Longer duration for non-retryable errors
+          action: error.retryable ? {
+            label: 'Retry',
+            onClick: () => {
+              // Retry the last failed transaction with same parameters
+              if (isFullyAuthenticated) {
+                const walletNonce = getNextNonce();
+                if (walletNonce !== null) {
+                  submitTransactionMutation.mutate({ betAmount, walletNonce });
+                }
+              }
+            }
+          } : undefined
+        });
+      } else {
+        // Fallback to simpler error display
+        toast.error(displayMessage, {
+          duration: 6000
+        });
+      }
+
+      // Enhanced error logging for debugging
+      console.error('Structured error details:', {
+        type: error.errorType,
+        message: error.message,
+        userMessage: error.userMessage,
+        retryable: error.retryable,
+        suggestions: error.suggestions
+      });
 
       // Find the most recent dropping game and mark it as failed
       const droppingGame = gameHistory.find(game => game.status === 'dropping');
       if (droppingGame) {
-        updateGameStatus(droppingGame.gameId, 'failed');
+        // Pass error context to game history for detailed error display
+        const gameError = {
+          errorType: error.errorType,
+          message: error.message,
+          userMessage: error.userMessage,
+          retryable: error.retryable,
+          suggestions: error.suggestions
+        };
+
+        updateGameStatus(droppingGame.gameId, 'failed', undefined, gameError);
+
+        // Also remove any ball that was created for this failed game
+        // The ball will naturally disappear from physics world due to timeout,
+        // but we ensure game state is properly cleaned up
+        console.log('🧹 Cleaning up failed game state for:', droppingGame.gameId);
       }
     },
     onNonceError: () => {
@@ -115,7 +175,7 @@ const PlinkoGame = () => {
   });
 
   // Authentication state
-  const { isConnected, isConnecting, isReconnecting } = useAccount();
+  const { isConnected } = useAccount();
   const { data: authSession } = useAuthSession();
   const { data: session } = useAbstractSession();
 
@@ -153,9 +213,25 @@ const PlinkoGame = () => {
   // Audio management
   const { playBallDrop, playBounce, playLand, playBigWin } = useAudio();
 
+  // ETH balance management
+  const { balanceEth, isLoading: balanceLoading, error: balanceError, refetch: refetchBalance } = useEthBalance();
+
   // Demo mode state with auto-switching based on wallet connection
   const [isDemoMode, setIsDemoMode] = useState(!isConnected);
-  
+
+  // Auto-adjust bet amount if current selection exceeds balance
+  useEffect(() => {
+    if (!isDemoMode && balanceEth !== null && betAmount > balanceEth) {
+      // Find the highest available bet amount that user can afford
+      const availableAmounts = [0.001, 0.01, 0.1].filter(amount => amount <= balanceEth);
+      if (availableAmounts.length > 0) {
+        const newBetAmount = Math.max(...availableAmounts);
+        setBetAmount(newBetAmount);
+        console.log(`🔄 Auto-adjusted bet amount to ${newBetAmount} ETH due to insufficient balance`);
+      }
+    }
+  }, [balanceEth, betAmount, isDemoMode]);
+
   // Auto-switch demo mode based on wallet connection
   useEffect(() => {
     if (!isConnected) {
@@ -251,6 +327,10 @@ const PlinkoGame = () => {
   useEffect(() => {
     if (!canvasRef.current) return;
 
+    // Capture ref values at the beginning to avoid stale closure warnings
+    const pegTimeouts = pegAnimationTimeouts.current;
+    const bucketTimeouts = bucketAnimationTimeouts.current;
+
     // Physics engine setup with custom gravity for good ball flow
     const engine = Matter.Engine.create();
     engine.gravity.y = 1; // Strong downward pull
@@ -275,7 +355,7 @@ const PlinkoGame = () => {
           ball = bodyA;
           bucket = bodyB;
         }
-        
+
         // Identify ball and peg collisions for bounce sounds
         if (bodyA.label === 'peg' && ballsRef.current.includes(bodyB)) {
           ball = bodyB;
@@ -288,7 +368,7 @@ const PlinkoGame = () => {
         // Handle peg bounce sounds and visual effects
         if (ball && peg) {
           playBounce();
-          
+
           // Add visual effect to peg on collision
           animatePegHit(peg);
         }
@@ -314,7 +394,7 @@ const PlinkoGame = () => {
             // Reveal the result in the GameHistoryTable now that the ball has landed
             const payout = ballOutcome.betAmount * ballOutcome.multiplier / 100;
             revealBallResult(ballOutcome.gameId, ballOutcome.multiplier / 100, payout);
-            
+
             // Mark that this ball has landed - UI can now show the results
             setBallsLanded(prev => new Set(prev).add(ballOutcome.gameId));
             console.log('🎯 Ball landed for game:', ballOutcome.gameId, 'Results can now be shown in UI');
@@ -473,13 +553,13 @@ const PlinkoGame = () => {
       // Clear references and timeouts
       pegsRef.current = [];
       bucketsRef.current = [];
-      // Clear all animation timeouts
-      pegAnimationTimeouts.current.forEach(timeout => clearTimeout(timeout));
-      pegAnimationTimeouts.current.clear();
-      bucketAnimationTimeouts.current.forEach(timeout => clearTimeout(timeout));
-      bucketAnimationTimeouts.current.clear();
+      // Clear all animation timeouts using captured values
+      pegTimeouts.forEach(timeout => clearTimeout(timeout));
+      pegTimeouts.clear();
+      bucketTimeouts.forEach(timeout => clearTimeout(timeout));
+      bucketTimeouts.clear();
     };
-  }, [BUCKET_WIDTH, revealBallResult]); // Only create physics world once
+  }, [BUCKET_WIDTH, revealBallResult]); // BUCKET_WIDTH affects bucket rendering, revealBallResult is used in collision handler
 
   /**
    * Creates a ball with server-determined outcome using velocity mapping
@@ -593,7 +673,7 @@ const PlinkoGame = () => {
     // Get bucket multiplier from label to determine original colors
     const bucketMultiplier = parseFloat(bucket.label?.split('-')[1] || '1');
     let originalFill: string;
-    let originalStroke: string;
+    const originalStroke = '#0F5BA8';
     const originalLineWidth = 1;
 
     // Recreate original bucket colors based on multiplier
@@ -605,8 +685,6 @@ const PlinkoGame = () => {
     else if (bucketMultiplier >= 1) originalFill = '#1475E1';       // 1.5x, 1x
     else if (bucketMultiplier >= 0.5) originalFill = '#2A82E6';     // 0.5x
     else originalFill = '#4A90E6';                      // 0.3x
-    
-    originalStroke = '#0F5BA8';
 
     // Determine animation colors based on multiplier
     let glowColor: string;
@@ -687,12 +765,12 @@ const PlinkoGame = () => {
   const generateDemoOutcome = useCallback(() => {
     // Generate random value between 0 and PRECISION-1
     const randomValue = Math.floor(Math.random() * PRECISION);
-    
+
     // Find the container using the same logic as server
-    const container = CONTAINER_PROBABILITIES.find(c => 
+    const container = CONTAINER_PROBABILITIES.find(c =>
       randomValue >= c.range[0] && randomValue <= c.range[1]
     );
-    
+
     if (!container) {
       // Fallback to center bucket
       return {
@@ -702,10 +780,10 @@ const PlinkoGame = () => {
         gameId: crypto.randomUUID()
       };
     }
-    
+
     // Find bucket index by multiplier
     const bucketIndex = CONTAINER_PROBABILITIES.findIndex(c => c.multiplier === container.multiplier);
-    
+
     return {
       randomSeed: randomValue,
       targetBucket: bucketIndex,
@@ -719,22 +797,22 @@ const PlinkoGame = () => {
    */
   const dropDemoBall = useCallback(() => {
     if (!engineRef.current) return;
-    
+
     console.log('🎯 Dropping demo ball...');
-    
+
     // Generate demo outcome
     const outcome = generateDemoOutcome();
-    
+
     // Create ball immediately with demo outcome
-    createBallWithOutcome({ 
-      ...outcome, 
+    createBallWithOutcome({
+      ...outcome,
       betAmount: 0 // Demo balls have no bet amount
     });
-    
+
     // Play ball drop sound
     playBallDrop();
-    
-    console.log(`🎯 Demo ball will land in bucket ${outcome.targetBucket} with ${outcome.multiplier/100}x multiplier`);
+
+    console.log(`🎯 Demo ball will land in bucket ${outcome.targetBucket} with ${outcome.multiplier / 100}x multiplier`);
   }, [engineRef, generateDemoOutcome, createBallWithOutcome, playBallDrop]);
 
   /**
@@ -802,10 +880,10 @@ const PlinkoGame = () => {
     <div className="min-h-[calc(100vh-8rem)]">
       {/* Main Layout */}
       <div className="flex flex-col 2xl:flex-row justify-center items-start min-h-[calc(100vh-8rem)]">
-        
+
         {/* Top Section: Game + Controls (horizontal on lg/xl, vertical on smaller) */}
         <div className="w-full flex flex-col lg:flex-row lg:gap-8 lg:justify-center lg:items-start lg:mt-4 2xl:mt-0 2xl:contents order-1">
-          
+
           {/* Game Controls - Compact for lg/xl, full panel for 2xl */}
           <div className="w-full lg:w-auto 2xl:w-[400px] 2xl:fixed 2xl:left-0 2xl:top-[60px] 2xl:h-[calc(100vh-60px)] order-2 lg:order-1 2xl:order-1 lg:pl-8 2xl:pl-0">
             <div className="bg-black/5 backdrop-blur-sm p-6 lg:rounded-xl lg:border 2xl:border-r 2xl:border-b-0 2xl:rounded-none border-white/10 w-full lg:w-80 2xl:w-full h-auto lg:h-[652px] 2xl:h-full flex flex-col">
@@ -814,7 +892,7 @@ const PlinkoGame = () => {
                 <div className="hidden 2xl:block">
                   <PlayerCard />
                 </div>
-                
+
                 {/* Top section - normal on lg/xl, centered on 2xl+ */}
                 <div className="2xl:flex-1 2xl:flex 2xl:flex-col 2xl:justify-center">
                   <h2 className="text-white font-bold text-lg text-center mb-6 lg:mb-4 2xl:mb-6 hidden lg:block">Game Controls</h2>
@@ -827,11 +905,11 @@ const PlinkoGame = () => {
                         <Checkbox
                           id="demo-mode"
                           checked={isDemoMode}
-                          onCheckedChange={setIsDemoMode}
+                          onCheckedChange={(checked) => setIsDemoMode(checked === true)}
                           disabled={!isConnected} // Force demo mode when disconnected
                         />
-                        <label 
-                          htmlFor="demo-mode" 
+                        <label
+                          htmlFor="demo-mode"
                           className="text-white font-semibold text-sm cursor-pointer select-none"
                         >
                           Demo Mode
@@ -839,45 +917,70 @@ const PlinkoGame = () => {
                       </div>
                     </div>
                     <div className="flex flex-row lg:flex-col gap-2 lg:gap-0 lg:space-y-2">
-                      {[0.001, 0.01, 0.1].map((amount) => (
-                        <Button
-                          key={amount}
-                          variant={betAmount === amount ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handlePresetBet(amount)}
-                          className="flex-1 lg:flex-none lg:w-full justify-center text-sm"
-                        >
-                          {amount} ETH
-                        </Button>
-                      ))}
+                      {[0.001, 0.01, 0.1].map((amount) => {
+                        const isDisabled = !isDemoMode && balanceEth !== null && amount > balanceEth;
+                        const isSelected = betAmount === amount;
+
+                        return (
+                          <Button
+                            key={amount}
+                            variant={isSelected ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handlePresetBet(amount)}
+                            disabled={isDisabled}
+                            className={`flex-1 lg:flex-none lg:w-full justify-center text-sm ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
+                            title={isDisabled ? `Insufficient balance (${balanceEth?.toFixed(4)} ETH available)` : undefined}
+                          >
+                            {amount} ETH
+                          </Button>
+                        );
+                      })}
                     </div>
-                    <p className="text-xs text-gray-400 text-center min-h-[16px]">
-                      {isDemoMode && (!isConnected ? "Connect wallet to enable real mode" : "Playing with demo balls - no real money")}
-                    </p>
                   </div>
 
                   {/* Play Button Section - Shown below bet amount on all screens */}
                   <div className="mb-6">
                     <ShinyButton
-                      onClick={isDemoMode ? dropDemoBall : dropBall}
-                      disabled={isDemoMode ? false : (!isConnected || isConnecting || isReconnecting || !isFullyAuthenticated)}
+                      onClick={isFullyAuthenticated && !isDemoMode ? dropBall : dropDemoBall}
+                      disabled={false}
                       className="w-full"
                     >
                       {(() => {
-                        if (!isConnected) {
-                          return 'Connect Wallet';
-                        } else if (isConnecting || isReconnecting) {
-                          return 'Connecting...';
-                        } else if (isDemoMode) {
-                          return 'Drop Ball (Demo Mode)';
+                        if (isFullyAuthenticated && !isDemoMode) {
+                          if (balanceEth !== null && betAmount > balanceEth) {
+                            return 'Insufficient Balance';
+                          } else {
+                            return 'Drop Ball';
+                          }
                         } else {
-                          return 'Drop Ball';
+                          return 'Drop Ball (Demo Mode)';
                         }
                       })()}
                     </ShinyButton>
+
                     <p className="text-xs text-gray-400 text-center mt-3">
                       or press <kbd className="px-1.5 py-0.5 bg-gray-700 text-gray-200 rounded text-xs font-mono">space</kbd> to drop ball
                     </p>
+
+                    {/* Show Connect Wallet button when not fully authenticated */}
+                    {!isFullyAuthenticated && (
+                      <SignInModal>
+                        <Button
+                          variant="outline"
+                          className="w-full mt-3 border-white/20 text-white hover:bg-white/10 h-12 text-base"
+                        >
+                          Connect Wallet to Play
+                          <Image
+                            src="/abs.svg"
+                            alt="Abstract"
+                            width={20}
+                            height={20}
+                            className="ml-2 icon-spin"
+                          />
+                        </Button>
+                      </SignInModal>
+                    )}
                   </div>
                 </div>
 
@@ -971,7 +1074,7 @@ const PlinkoGame = () => {
                 </div>
                 <h3 className="text-white font-bold text-lg">Demo Mode Active</h3>
                 <div className="space-y-2 text-sm text-gray-400">
-                  <p>You're playing with demo balls!</p>
+                  <p>You&rsquo;re playing with demo balls!</p>
                   <p>• No real money involved</p>
                   <p>• Same physics and experience</p>
                   <p>• No game history tracked</p>
