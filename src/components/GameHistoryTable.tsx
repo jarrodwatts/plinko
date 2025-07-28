@@ -64,8 +64,10 @@ export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }
   };
 
   const getRowGradient = (game: GameResult) => {
-    if (!ballsLanded.has(game.gameId)) {
-      // Ball hasn't landed yet - neutral/suspense gradient regardless of actual status
+    const isRecent = Date.now() - game.timestamp.getTime() < 10000; // 10 seconds
+    const shouldHideResult = isRecent && !ballsLanded.has(game.gameId);
+    if (shouldHideResult) {
+      // Ball hasn't landed yet - neutral/suspense gradient for active games
       return 'bg-gradient-to-r from-orange-500/10 via-orange-400/5 to-transparent';
     } else if (game.profitLoss > 0) {
       // Win - green gradient
@@ -161,8 +163,11 @@ export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }
             <TableBody>
               <AnimatePresence mode="popLayout">
                 {gameHistory.map((game, index) => {
-                  // Show "dropping" status until ball has landed, then show actual status
-                  const displayStatus = ballsLanded.has(game.gameId) ? game.status : 'dropping';
+                  // Hide results for active games (recent + not physically landed) regardless of transaction status
+                  // Historical games (older than 10 seconds) should always show results
+                  const isRecent = Date.now() - game.timestamp.getTime() < 10000; // 10 seconds
+                  const shouldHideResult = isRecent && !ballsLanded.has(game.gameId);
+                  const displayStatus = shouldHideResult ? 'dropping' : game.status;
                   const statusText = getStatusDisplay(displayStatus);
                   return (
                     <motion.tr
@@ -213,7 +218,7 @@ export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }
                           transition={{ delay: 0.15 + index * 0.05, duration: 0.2 }}
                           className="inline-block"
                         >
-                          {!ballsLanded.has(game.gameId) ? (
+                          {shouldHideResult ? (
                             <motion.div
                               animate={{ opacity: [0.3, 1, 0.3] }}
                               transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
@@ -224,7 +229,7 @@ export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }
                       </TableCell>
                       <TableCell className={cn(
                         "font-mono text-xs font-medium",
-                        !ballsLanded.has(game.gameId)
+                        shouldHideResult
                           ? "text-gray-500" 
                           : game.profitLoss >= 0 
                             ? "text-green-600 dark:text-green-400" 
@@ -236,7 +241,7 @@ export function GameHistoryTable({ gameHistory, isLoading, height, ballsLanded }
                           transition={{ delay: 0.2 + index * 0.05, duration: 0.2 }}
                           className="inline-block"
                         >
-                          {!ballsLanded.has(game.gameId) ? (
+                          {shouldHideResult ? (
                             <motion.div
                               animate={{ opacity: [0.3, 1, 0.3] }}
                               transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
