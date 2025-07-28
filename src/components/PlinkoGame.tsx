@@ -30,6 +30,7 @@ const PlinkoGame = () => {
   const pegsRef = useRef<Matter.Body[]>([]);
   const bucketsRef = useRef<Matter.Body[]>([]);
   const pegAnimationTimeouts = useRef<Map<Matter.Body, NodeJS.Timeout>>(new Map());
+  const bucketAnimationTimeouts = useRef<Map<Matter.Body, NodeJS.Timeout>>(new Map());
   const [dimensions, setDimensions] = useState({ width: 800, height: 620 });
 
   // Transaction status tracking (for UI feedback only)
@@ -455,9 +456,11 @@ const PlinkoGame = () => {
       // Clear references and timeouts
       pegsRef.current = [];
       bucketsRef.current = [];
-      // Clear all peg animation timeouts
+      // Clear all animation timeouts
       pegAnimationTimeouts.current.forEach(timeout => clearTimeout(timeout));
       pegAnimationTimeouts.current.clear();
+      bucketAnimationTimeouts.current.forEach(timeout => clearTimeout(timeout));
+      bucketAnimationTimeouts.current.clear();
     };
   }, [BUCKET_WIDTH, revealBallResult]); // Only create physics world once
 
@@ -564,10 +567,29 @@ const PlinkoGame = () => {
   const animateBucketLanding = useCallback((bucket: Matter.Body, multiplierOrType: number | 'big-win') => {
     if (!bucket.render) return;
 
-    // Store original colors
-    const originalFill = bucket.render.fillStyle;
-    const originalStroke = bucket.render.strokeStyle;
-    const originalLineWidth = bucket.render.lineWidth;
+    // Clear any existing timeout for this bucket
+    const existingTimeout = bucketAnimationTimeouts.current.get(bucket);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Get bucket multiplier from label to determine original colors
+    const bucketMultiplier = parseFloat(bucket.label?.split('-')[1] || '1');
+    let originalFill: string;
+    let originalStroke: string;
+    const originalLineWidth = 1;
+
+    // Recreate original bucket colors based on multiplier
+    if (bucketMultiplier >= 100) originalFill = '#0F5BA8';    // 110x
+    else if (bucketMultiplier >= 40) originalFill = '#1165C7';     // 42x
+    else if (bucketMultiplier >= 10) originalFill = '#1269D3';      // 10x
+    else if (bucketMultiplier >= 5) originalFill = '#1370DB';       // 5x
+    else if (bucketMultiplier >= 2) originalFill = '#1473DE';       // 3x
+    else if (bucketMultiplier >= 1) originalFill = '#1475E1';       // 1.5x, 1x
+    else if (bucketMultiplier >= 0.5) originalFill = '#2A82E6';     // 0.5x
+    else originalFill = '#4A90E6';                      // 0.3x
+    
+    originalStroke = '#0F5BA8';
 
     // Determine animation colors based on multiplier
     let glowColor: string;
@@ -628,13 +650,18 @@ const PlinkoGame = () => {
     }
 
     // Fade back to original after duration
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       if (bucket.render) {
         bucket.render.fillStyle = originalFill;
         bucket.render.strokeStyle = originalStroke;
         bucket.render.lineWidth = originalLineWidth;
       }
+      // Remove timeout from map
+      bucketAnimationTimeouts.current.delete(bucket);
     }, duration);
+
+    // Store timeout for this bucket
+    bucketAnimationTimeouts.current.set(bucket, timeout);
   }, []);
 
   /**
