@@ -17,7 +17,8 @@ export function PlayerCard() {
   });
 
   if (!isConnected || !address) {
-    return null;
+    // Return invisible placeholder to maintain layout consistency
+    return <div className="h-[88px] mb-6" />; // Same height as the actual card
   }
 
   const displayName = getDisplayName(profile?.user?.name || "", address);

@@ -14,8 +14,11 @@ import LotteryBallMachine from '@/components/LotteryBallMachine';
 import { ShinyButton } from '@/components/ui/shiny-button';
 import { PlayerCard } from '@/components/ui/PlayerCard';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
 import { PRIMARY_COLOR, PRIMARY_DARK } from '@/lib/colors';
 import { toast } from 'sonner';
+import { CONTAINER_PROBABILITIES, PRECISION } from '@/config/probabilities';
 
 /**
  * A fully responsive Plinko game built with Matter.js physics engine.
@@ -112,7 +115,7 @@ const PlinkoGame = () => {
   });
 
   // Authentication state
-  const { isConnected } = useAccount();
+  const { isConnected, isConnecting, isReconnecting } = useAccount();
   const { data: authSession } = useAuthSession();
   const { data: session } = useAbstractSession();
 
@@ -149,6 +152,20 @@ const PlinkoGame = () => {
 
   // Audio management
   const { playBallDrop, playBounce, playLand, playBigWin } = useAudio();
+
+  // Demo mode state with auto-switching based on wallet connection
+  const [isDemoMode, setIsDemoMode] = useState(!isConnected);
+  
+  // Auto-switch demo mode based on wallet connection
+  useEffect(() => {
+    if (!isConnected) {
+      // Force demo mode when disconnected
+      setIsDemoMode(true);
+    } else {
+      // Default to real mode when connected (user can still manually toggle)
+      setIsDemoMode(false);
+    }
+  }, [isConnected]);
 
   // Check if user is fully authenticated and wallet nonce is ready
   const isFullyAuthenticated = isConnected && authSession?.isAuthenticated && session && currentNonce !== null;
@@ -665,6 +682,62 @@ const PlinkoGame = () => {
   }, []);
 
   /**
+   * Generate demo outcome using same probability system as server
+   */
+  const generateDemoOutcome = useCallback(() => {
+    // Generate random value between 0 and PRECISION-1
+    const randomValue = Math.floor(Math.random() * PRECISION);
+    
+    // Find the container using the same logic as server
+    const container = CONTAINER_PROBABILITIES.find(c => 
+      randomValue >= c.range[0] && randomValue <= c.range[1]
+    );
+    
+    if (!container) {
+      // Fallback to center bucket
+      return {
+        randomSeed: randomValue,
+        targetBucket: 8, // Center bucket index
+        multiplier: 30,  // 0.3x multiplier
+        gameId: crypto.randomUUID()
+      };
+    }
+    
+    // Find bucket index by multiplier
+    const bucketIndex = CONTAINER_PROBABILITIES.findIndex(c => c.multiplier === container.multiplier);
+    
+    return {
+      randomSeed: randomValue,
+      targetBucket: bucketIndex,
+      multiplier: container.multiplier,
+      gameId: crypto.randomUUID()
+    };
+  }, []);
+
+  /**
+   * Drops a demo ball with local randomness (no blockchain transaction)
+   */
+  const dropDemoBall = useCallback(() => {
+    if (!engineRef.current) return;
+    
+    console.log('🎯 Dropping demo ball...');
+    
+    // Generate demo outcome
+    const outcome = generateDemoOutcome();
+    
+    // Create ball immediately with demo outcome
+    createBallWithOutcome({ 
+      ...outcome, 
+      betAmount: 0 // Demo balls have no bet amount
+    });
+    
+    // Play ball drop sound
+    playBallDrop();
+    
+    console.log(`🎯 Demo ball will land in bucket ${outcome.targetBucket} with ${outcome.multiplier/100}x multiplier`);
+  }, [engineRef, generateDemoOutcome, createBallWithOutcome, playBallDrop]);
+
+  /**
    * Drops a ball by triggering server-controlled randomness and transaction
    */
   const dropBall = useCallback(async () => {
@@ -711,13 +784,17 @@ const PlinkoGame = () => {
     const handleKeyPress = (event: KeyboardEvent) => {
       if (event.code === 'Space') {
         event.preventDefault();
-        dropBall();
+        if (isDemoMode) {
+          dropDemoBall();
+        } else {
+          dropBall();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [dropBall]);
+  }, [dropBall, dropDemoBall, isDemoMode]);
 
   const isMobile = displayWidth < 500;
 
@@ -744,7 +821,23 @@ const PlinkoGame = () => {
 
                   {/* Bet Amount Section */}
                   <div className="space-y-3 mb-6">
-                    <h3 className="text-white font-semibold text-sm text-center">Bet Amount</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-white font-semibold text-sm">Bet Amount</h3>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="demo-mode"
+                          checked={isDemoMode}
+                          onCheckedChange={setIsDemoMode}
+                          disabled={!isConnected} // Force demo mode when disconnected
+                        />
+                        <label 
+                          htmlFor="demo-mode" 
+                          className="text-white font-semibold text-sm cursor-pointer select-none"
+                        >
+                          Demo Mode
+                        </label>
+                      </div>
+                    </div>
                     <div className="flex flex-row lg:flex-col gap-2 lg:gap-0 lg:space-y-2">
                       {[0.001, 0.01, 0.1].map((amount) => (
                         <Button
@@ -758,16 +851,29 @@ const PlinkoGame = () => {
                         </Button>
                       ))}
                     </div>
+                    <p className="text-xs text-gray-400 text-center min-h-[16px]">
+                      {isDemoMode && (!isConnected ? "Connect wallet to enable real mode" : "Playing with demo balls - no real money")}
+                    </p>
                   </div>
 
                   {/* Play Button Section - Shown below bet amount on all screens */}
                   <div className="mb-6">
                     <ShinyButton
-                      onClick={dropBall}
-                      disabled={!isFullyAuthenticated}
+                      onClick={isDemoMode ? dropDemoBall : dropBall}
+                      disabled={isDemoMode ? false : (!isConnected || isConnecting || isReconnecting || !isFullyAuthenticated)}
                       className="w-full"
                     >
-                      Drop Ball
+                      {(() => {
+                        if (!isConnected) {
+                          return 'Connect Wallet';
+                        } else if (isConnecting || isReconnecting) {
+                          return 'Connecting...';
+                        } else if (isDemoMode) {
+                          return 'Drop Ball (Demo Mode)';
+                        } else {
+                          return 'Drop Ball';
+                        }
+                      })()}
                     </ShinyButton>
                     <p className="text-xs text-gray-400 text-center mt-3">
                       or press <kbd className="px-1.5 py-0.5 bg-gray-700 text-gray-200 rounded text-xs font-mono">space</kbd> to drop ball
@@ -857,12 +963,34 @@ const PlinkoGame = () => {
 
         {/* History Table - Below everything on sm/md/lg/xl, right panel on 2xl */}
         <div className="w-full 2xl:w-[400px] 2xl:fixed 2xl:right-0 2xl:top-[60px] 2xl:h-[calc(100vh-60px)] 2xl:border-t 2xl:border-white/10 order-2 mt-8 lg:mt-12 2xl:mt-0">
-          <GameHistoryTable
-            gameHistory={gameHistory}
-            isLoading={historyLoading}
-            height={null}
-            ballsLanded={ballsLanded}
-          />
+          {isDemoMode ? (
+            <div className="bg-black/5 backdrop-blur-sm p-6 2xl:rounded-none rounded-xl border border-white/10 h-full">
+              <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+                <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center">
+                  <span className="text-2xl">🎯</span>
+                </div>
+                <h3 className="text-white font-bold text-lg">Demo Mode Active</h3>
+                <div className="space-y-2 text-sm text-gray-400">
+                  <p>You're playing with demo balls!</p>
+                  <p>• No real money involved</p>
+                  <p>• Same physics and experience</p>
+                  <p>• No game history tracked</p>
+                </div>
+                {isConnected && (
+                  <p className="text-xs text-gray-400 mt-4">
+                    Turn off demo mode above to play with real ETH
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <GameHistoryTable
+              gameHistory={gameHistory}
+              isLoading={historyLoading}
+              height={null}
+              ballsLanded={ballsLanded}
+            />
+          )}
         </div>
       </div>
     </div>
