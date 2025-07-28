@@ -11,6 +11,7 @@ import { useGameHistory } from '@/hooks/use-game-history';
 import { GameHistoryTable } from '@/components/GameHistoryTable';
 import LotteryBallMachine from '@/components/LotteryBallMachine';
 import { ShinyButton } from '@/components/ui/shiny-button';
+import { PlayerCard } from '@/components/ui/PlayerCard';
 import { Button } from '@/components/ui/button';
 import { PRIMARY_COLOR, PRIMARY_DARK } from '@/lib/colors';
 import { toast } from 'sonner';
@@ -538,48 +539,56 @@ const PlinkoGame = () => {
       <div className="flex flex-col 2xl:flex-row justify-center items-start min-h-[calc(100vh-8rem)]">
         
         {/* Top Section: Game + Controls (horizontal on lg/xl, vertical on smaller) */}
-        <div className="w-full flex flex-col lg:flex-row lg:gap-8 lg:justify-center lg:items-start 2xl:contents order-1">
+        <div className="w-full flex flex-col lg:flex-row lg:gap-8 lg:justify-center lg:items-start lg:mt-4 2xl:mt-0 2xl:contents order-1">
           
           {/* Game Controls - Compact for lg/xl, full panel for 2xl */}
-          <div className="w-full lg:w-auto 2xl:w-[400px] 2xl:fixed 2xl:left-0 2xl:top-[60px] 2xl:h-[calc(100vh-60px)] order-2 lg:order-1 2xl:order-1">
-            <div className="bg-black/5 backdrop-blur-sm p-6 lg:rounded-xl lg:border-r lg:border-b 2xl:border-r 2xl:border-b-0 2xl:rounded-none border-white/10 w-full lg:w-64 2xl:w-full h-auto lg:h-[620px] 2xl:h-full flex flex-col">
-              <div className="flex flex-col h-full">
-                <h2 className="text-white font-bold text-lg text-center mb-6 lg:mb-4 2xl:mb-6 hidden lg:block">Game Controls</h2>
+          <div className="w-full lg:w-auto 2xl:w-[400px] 2xl:fixed 2xl:left-0 2xl:top-[60px] 2xl:h-[calc(100vh-60px)] order-2 lg:order-1 2xl:order-1 lg:pl-8 2xl:pl-0">
+            <div className="bg-black/5 backdrop-blur-sm p-6 lg:rounded-xl lg:border 2xl:border-r 2xl:border-b-0 2xl:rounded-none border-white/10 w-full lg:w-80 2xl:w-full h-auto lg:h-[652px] 2xl:h-full flex flex-col">
+              <div className="flex flex-col h-full 2xl:justify-center">
+                {/* Player Card - Only shown on 2xl+ screens */}
+                <div className="hidden 2xl:block">
+                  <PlayerCard />
+                </div>
+                
+                {/* Top section - normal on lg/xl, centered on 2xl+ */}
+                <div className="2xl:flex-1 2xl:flex 2xl:flex-col 2xl:justify-center">
+                  <h2 className="text-white font-bold text-lg text-center mb-6 lg:mb-4 2xl:mb-6 hidden lg:block">Game Controls</h2>
 
-                {/* Bet Amount Section */}
-                <div className="space-y-3 mb-6">
-                  <h3 className="text-white font-semibold text-sm text-center">Bet Amount</h3>
-                  <div className="flex flex-row sm:flex-col gap-2 sm:gap-0 sm:space-y-2">
-                    {[0.001, 0.01, 0.1].map((amount) => (
-                      <Button
-                        key={amount}
-                        variant={betAmount === amount ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handlePresetBet(amount)}
-                        className="flex-1 sm:flex-none sm:w-full justify-center text-sm"
-                      >
-                        {amount} ETH
-                      </Button>
-                    ))}
+                  {/* Bet Amount Section */}
+                  <div className="space-y-3 mb-6">
+                    <h3 className="text-white font-semibold text-sm text-center">Bet Amount</h3>
+                    <div className="flex flex-row lg:flex-col gap-2 lg:gap-0 lg:space-y-2">
+                      {[0.001, 0.01, 0.1].map((amount) => (
+                        <Button
+                          key={amount}
+                          variant={betAmount === amount ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePresetBet(amount)}
+                          className="flex-1 lg:flex-none lg:w-full justify-center text-sm"
+                        >
+                          {amount} ETH
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Play Button Section - Shown below bet amount on all screens */}
+                  <div className="mb-6">
+                    <ShinyButton
+                      onClick={dropBall}
+                      disabled={!isFullyAuthenticated}
+                      className="w-full"
+                    >
+                      Drop Ball
+                    </ShinyButton>
+                    <p className="text-xs text-gray-400 text-center mt-3">
+                      or press <kbd className="px-1.5 py-0.5 bg-gray-700 text-gray-200 rounded text-xs font-mono">space</kbd> to drop ball
+                    </p>
                   </div>
                 </div>
 
-                {/* Play Button Section - Shown below bet amount on all screens */}
-                <div className="mb-6">
-                  <ShinyButton
-                    onClick={dropBall}
-                    disabled={!isFullyAuthenticated}
-                    className="w-full"
-                  >
-                    Drop Ball
-                  </ShinyButton>
-                </div>
-
-                {/* Spacer to push content to bottom on 2xl+ */}
-                <div className="flex-1 hidden 2xl:block"></div>
-
                 {/* How to Play Section - Shown on lg/xl and 2xl+ */}
-                <div className="space-y-2 mb-6 hidden lg:block">
+                <div className="space-y-2 mb-6 hidden lg:block border-t border-white/10 pt-6">
                   <h3 className="text-white font-semibold text-sm">How to Play</h3>
                   <div className="text-xs text-gray-400 space-y-2">
                     <p>Drop balls down the peg board to win ETH based on where they land.</p>
@@ -600,7 +609,7 @@ const PlinkoGame = () => {
           </div>
 
           {/* Game Container - Center */}
-          <div className="flex items-center justify-center order-1 lg:order-2 2xl:order-2 2xl:mx-[400px] w-full lg:flex-1 pt-8 lg:pt-0 lg:min-h-[620px] 2xl:h-[calc(100vh-280px)] 2xl:pt-0">
+          <div className="flex items-center justify-center order-1 lg:order-2 2xl:order-2 2xl:mx-[400px] w-full lg:flex-1 pt-8 lg:pt-0 lg:pr-8 lg:min-h-[620px] 2xl:h-[calc(100vh-280px)] 2xl:pt-0 2xl:pr-0">
             <div className="relative lg:border lg:border-white/10 lg:rounded-2xl lg:p-4 lg:bg-black/5 lg:backdrop-blur-sm">
               <div className="overflow-hidden relative rounded-2xl"
                 style={{ width: displayWidth, height: displayHeight }}>
